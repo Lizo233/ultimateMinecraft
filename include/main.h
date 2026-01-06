@@ -9,8 +9,9 @@
 #include <sstream>
 #include <map>
 #include <chrono>
+#include <mutex>
 
-//µÚÈı·½¿â
+//ç¬¬ä¸‰æ–¹åº“
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
@@ -20,16 +21,20 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include <fmt/core.h>
+#include <fmt/color.h>
 
 
-
-//¸÷¸ö³£Á¿
+//å„ä¸ªå¸¸é‡
 constexpr int DEFAULT_WIDTH = 1600;
 constexpr int DEFAULT_HEIGHT = 1200;
 
-//¸÷¸ö±äÁ¿
+//å„ä¸ªå˜é‡
 double deltaTime;
 double lastFrame;
+
+//å¤šçº¿ç¨‹
+std::map<std::string,std::mutex> mtxMap;
 
 std::string getTime() {
 	time_t time_a;
@@ -45,15 +50,15 @@ int logSystemInit() {
 	std::string time = getTime();
 	std::filesystem::create_directory("Logs");
 
-	LogFile.open(("Logs/" + time + ".log").c_str(), std::ios::out); // ÒÔÊä³öÄ£Ê½´ò¿ªÎÄ¼ş
+	LogFile.open(("Logs/" + time + ".log").c_str(), std::ios::out); // ä»¥è¾“å‡ºæ¨¡å¼æ‰“å¼€æ–‡ä»¶
 
 	if (!LogFile) {
 		std::cerr << "Unable to log file!" << std::endl;
-		tinyfd_messageBox("´íÎóÈÕÖ¾ÏµÍ³Æô¶¯Ê§°Ü", "ÎŞ·¨Æô¶¯ÈÕÖ¾ÏµÍ³", "ok", "error", 1);
-		return 1; // ÎÄ¼ş´ò¿ªÊ§°Ü
+		tinyfd_messageBox("æ—¥å¿—ç³»ç»Ÿå¯åŠ¨å¤±è´¥", "æ— æ³•å¯åŠ¨æ—¥å¿—ç³»ç»Ÿ", "ok", "error", 1);
+		return 1; // æ–‡ä»¶æ‰“å¼€å¤±è´¥
 	}
 
-	LogFile << "ÈÕÖ¾ÏµÍ³ÒÑÆô¶¯\n" << std::endl; // Ğ´ÈëÎÄ±¾
+	LogFile << "æ—¥å¿—ç³»ç»Ÿå·²å¯åŠ¨\n" << std::endl; // å†™å…¥æ–‡æœ¬
 	return 0;
 }
 
@@ -73,66 +78,66 @@ void logPanic(std::string logText) {
 	LogFile << "[PANIC] " + logText << std::endl;
 }
 
-//×Ô¶¨ÒåUUID
+//è‡ªå®šä¹‰UUID
 struct UUID {
 	long long int high_UUID;
 	long long int low_UUID;
 };
 
-//·½¿éµÄÉùÒô
+//æ–¹å—çš„å£°éŸ³
 class InteractSound {
 	std::string something;
 };
 
-//·½¿éµÄ²ÄÖÊ
+//æ–¹å—çš„æè´¨
 class TextureCube {
 	std::string something;
 };
 
-//·½¿éµÄÊôĞÔ
+//æ–¹å—çš„å±æ€§
 using Listener = std::function<void()>;
 class ATTRIBUTE {
 	std::vector<Listener> listeners;
 };
 
-//º¯Êı·µ»ØÖµÈÕÖ¾
-//º¯Êı½«»á·µ»ØÈÕÖ¾£¬º¯ÊıÔÚÖ´ĞĞÍê±ÏÖ®ºó»á½«Ò»Ğ©½á¹ûpush½øretLogs vector
+//å‡½æ•°è¿”å›å€¼æ—¥å¿—
+//å‡½æ•°å°†ä¼šè¿”å›æ—¥å¿—ï¼Œå‡½æ•°åœ¨æ‰§è¡Œå®Œæ¯•ä¹‹åä¼šå°†ä¸€äº›ç»“æœpushè¿›retLogs vector
 struct RetLog {
-	int retValue;//·µ»ØÖµ
-	std::string comment;//Çé¿ö±¨¸æ
+	int retValue;//è¿”å›å€¼
+	std::string comment;//æƒ…å†µæŠ¥å‘Š
 };
-std::vector<RetLog> retLogs;//·µ»ØÈÕÖ¾Êı×é
+std::vector<RetLog> retLogs;//è¿”å›æ—¥å¿—æ•°ç»„
 
-//¶¨Òå·½¿éµÄÊı¾İ
+//å®šä¹‰æ–¹å—çš„æ•°æ®
 struct BlockStruct {
 
 	long long int BlockID;
-	UUID BlockUUID;//×Ô¶¨ÒåUUID¿â
-	std::string BlockNamespaceID;//ÃüÃû¿Õ¼äID£¬ÒÔºó¿ÉÄÜ»áÓÃµ½
+	UUID BlockUUID;//è‡ªå®šä¹‰UUIDåº“
+	std::string BlockNamespaceID;//å‘½åç©ºé—´IDï¼Œä»¥åå¯èƒ½ä¼šç”¨åˆ°
 
-	ATTRIBUTE attributes;//·½¿éÊôĞÔ£¬ÎÒÃÇ»á½«·½¿éÊôĞÔÖĞµÄº¯Êı¸½¼Óµ½¸üĞÂ¼àÌıÆ÷
-	std::string BlockName;//·½¿éµÄÏÔÊ¾Ãû³Æ
-	std::string BlockDescription;//·½¿éµÄ½éÉÜ
-	TextureCube BlockTexture;//·½¿éµÄ²ÄÖÊ£¬Áù¸öÃæ
-	InteractSound BlockSound;//·½¿é½»»¥£¬Èç´İ»Ù¡¢·ÅÖÃ¡¢ÍÚ¾òµÄÉùÒô
+	ATTRIBUTE attributes;//æ–¹å—å±æ€§ï¼Œæˆ‘ä»¬ä¼šå°†æ–¹å—å±æ€§ä¸­çš„å‡½æ•°é™„åŠ åˆ°æ›´æ–°ç›‘å¬å™¨
+	std::string BlockName;//æ–¹å—çš„æ˜¾ç¤ºåç§°
+	std::string BlockDescription;//æ–¹å—çš„ä»‹ç»
+	TextureCube BlockTexture;//æ–¹å—çš„æè´¨ï¼Œå…­ä¸ªé¢
+	InteractSound BlockSound;//æ–¹å—äº¤äº’ï¼Œå¦‚æ‘§æ¯ã€æ”¾ç½®ã€æŒ–æ˜çš„å£°éŸ³
 
-	std::string comment;//×¢ÊÍ£¬¿ÉÄÜÔÚ±à¼­Æ÷ÖĞ»áÓÃµ½£¿
+	std::string comment;//æ³¨é‡Šï¼Œå¯èƒ½åœ¨ç¼–è¾‘å™¨ä¸­ä¼šç”¨åˆ°ï¼Ÿ
 };
 
 BlockStruct BasicBlocks[1024];
 
 void BlockDataInitial() {
-	//¿ÕÆøµÄ·½¿é½á¹¹
+	//ç©ºæ°”çš„æ–¹å—ç»“æ„
 	BasicBlocks[0].BlockID = 0;
-	BasicBlocks[0].BlockName = "¿ÕÆø";//Õâ¸ö¶«Î÷Ö®ºó¿ÉÄÜÒª¿¼ÂÇ¹ú¼Ê»¯µÄlangÎÄ¼ş£¿
+	BasicBlocks[0].BlockName = "ç©ºæ°”";//è¿™ä¸ªä¸œè¥¿ä¹‹åå¯èƒ½è¦è€ƒè™‘å›½é™…åŒ–çš„langæ–‡ä»¶ï¼Ÿ
 
 	BasicBlocks[1].BlockID = 1;
-	BasicBlocks[1].BlockName = "Ê¯Í·";
+	BasicBlocks[1].BlockName = "çŸ³å¤´";
 
-	logInfo("·½¿éÊı¾İ³õÊ¼»¯Íê±Ï");
+	logInfo("æ–¹å—æ•°æ®åˆå§‹åŒ–å®Œæ¯•");
 }
 
-//»º³åÇø´óĞ¡¸Ä±ä»Øµ÷º¯Êı
+//ç¼“å†²åŒºå¤§å°æ”¹å˜å›è°ƒå‡½æ•°
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	// make sure the viewport matches the new window dimensions; note that width and 
@@ -140,15 +145,15 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
-//Êó±ê¹öÂÖ»Øµ÷º¯Êı
+//é¼ æ ‡æ»šè½®å›è°ƒå‡½æ•°
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	//camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
 
-//ÎªÁËÔËĞĞ£¬Ö»ÄÜ³ö´ËÏÂ²ß£¬×¢Òâmain.cpp±ØĞë°üº¬camera.h£¡
+//ä¸ºäº†è¿è¡Œï¼Œåªèƒ½å‡ºæ­¤ä¸‹ç­–ï¼Œæ³¨æ„main.cppå¿…é¡»åŒ…å«camera.hï¼
 extern void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
-//OpenGL³õÊ¼»¯
+//OpenGLåˆå§‹åŒ–
 GLFWwindow* OGLInitial() {
 	GLFWwindow* mWindow;
 	
@@ -171,73 +176,130 @@ GLFWwindow* OGLInitial() {
 	glfwSetCursorPosCallback(mWindow, mouse_callback);
 	glfwSetScrollCallback(mWindow, scroll_callback);
 
-	//ÆôÓÃ²¶»ñÊó±ê
+	//è®¾ç½®å¸§ç‡ä¸ºæ˜¾ç¤ºå™¨åˆ·æ–°ç‡
+	glfwSwapInterval(1);
+
+	//å¯ç”¨æ•è·é¼ æ ‡
 	glfwSetInputMode(mWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	//¼ÓÔØGLAD
+	//åŠ è½½GLAD
 	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress)) {
-		std::cout << "ÎŞ·¨³õÊ¼»¯GLAD" << std::endl;
-		logError("ÎŞ·¨³õÊ¼»¯GLAD");
+		std::cout << "æ— æ³•åˆå§‹åŒ–GLAD" << std::endl;
+		logError("æ— æ³•åˆå§‹åŒ–GLAD");
 		return nullptr;
 	}
 	std::cout << "OpenGL Version: " << glGetString(GL_VERSION) << std::endl;
 	LogFile << "[INFO] " << "OpenGL Version: " << glGetString(GL_VERSION) << '\n';
 
-	logInfo("OpenGL³õÊ¼»¯Íê±Ï");
+	logInfo("OpenGLåˆå§‹åŒ–å®Œæ¯•");
 
 	return mWindow;
 }
 
-//¸üĞÂÊ±¼ä
+//æ›´æ–°æ—¶é—´
 void timeUpdate() {
 	double currentFrame = glfwGetTime();
 	deltaTime = currentFrame - lastFrame;
 	lastFrame = currentFrame;
 }
-//ÇåÆÁ
+//æ¸…å±
 void clearScreen() {
 	glClearColor(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime()), 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
-//¶¥µãÊôĞÔ¶ÔÏó
+//é¡¶ç‚¹å±æ€§å¯¹è±¡
 std::map<std::string, unsigned int> vaoMap;
 void vaoInit() {
-	glGenVertexArrays(1, &vaoMap["square"]);
+	glGenVertexArrays(1, &vaoMap["cube"]);//æ–¹å—é»˜è®¤çš„vao
 
 
-	logInfo("vao³õÊ¼»¯Íê³É");
+	logInfo("vaoåˆå§‹åŒ–å®Œæˆ");
 }
 
-//¶¥µãÊı¾İ¶ÔÏó
+//é¡¶ç‚¹æ•°æ®å¯¹è±¡
 std::map<std::string, unsigned int> vboMap;
 void vboInit() {
-	float squareVertices[] = {
-		-1.0f,1.0f,1.0f,
-		-1.0f,-1.0f,1.0f,
-		1.0f,-1.0f,1.0f,
-		1.0f,1.0f,1.0f,
-		-1.0f,1.0f,-1.0f,
-		-1.0f,-1.0f,-1.0f,
-		1.0f,-1.0f,-1.0f,
-		1.0f,1.0f,-1.0f,
+	//
+	float cubeVertices[] = {
+		// Back face
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f, // Bottom-left
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // top-right
+		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // bottom-right         
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // top-right
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f, // bottom-left
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // top-left
+		// Front face
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 0.0f, // bottom-left
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f, // bottom-right
+		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f, // top-right
+		 0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f, // top-right
+		-0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f, // top-left
+		-0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 0.0f, // bottom-left
+		// Left face
+		-0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f, // top-right
+		-0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 0.0f, // top-left
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f, // bottom-left
+		-0.5f, -0.5f, -0.5f,  0.0f, 0.0f, 0.0f, // bottom-left
+		-0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f, // bottom-right
+		-0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 0.0f, // top-right
+		// Right face
+		 0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f, // top-left
+		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // bottom-right
+		 0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 0.0f, // top-right         
+		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, // bottom-right
+		 0.5f,  0.5f,  0.5f,  0.0f, 1.0f, 0.0f, // top-left
+		 0.5f, -0.5f,  0.5f,  0.0f, 0.0f, 0.0f, // bottom-left     
+		 // Bottom face
+		 -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, -1.0f, // top-right
+		  0.5f, -0.5f, -0.5f,  1.0f, 1.0f, -1.0f, // top-left
+		  0.5f, -0.5f,  0.5f,  1.0f, 0.0f, -1.0f, // bottom-left
+		  0.5f, -0.5f,  0.5f,  1.0f, 0.0f, -1.0f, // bottom-left
+		 -0.5f, -0.5f,  0.5f,  0.0f, 0.0f, -1.0f, // bottom-right
+		 -0.5f, -0.5f, -0.5f,  0.0f, 1.0f, -1.0f, // top-right
+		 // Top face
+		 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 1.0f, // top-left
+		  0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 1.0f, // bottom-right
+		  0.5f,  0.5f, -0.5f,  1.0f, 1.0f, 1.0f, // top-right     
+		  0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 1.0f, // bottom-right
+		 -0.5f,  0.5f, -0.5f,  0.0f, 1.0f, 1.0f, // top-left
+		 -0.5f,  0.5f,  0.5f,  0.0f, 0.0f, 1.0f, // bottom-left     
 	};
 
-	glGenBuffers(1, &vboMap["square"]);
-	glBindVertexArray(vaoMap["square"]);
-	glBindBuffer(GL_ARRAY_BUFFER, vboMap["square"]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(squareVertices), squareVertices, GL_STATIC_DRAW);
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-	glEnableVertexAttribArray(0);
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glGenBuffers(1, &vboMap["cube"]);//åˆ›å»ºVBO
+	glBindVertexArray(vaoMap["cube"]);//æ¿€æ´»VAO
+	glBindBuffer(GL_ARRAY_BUFFER, vboMap["cube"]);//æŠŠvboç»‘å®šåˆ°å½“å‰æ¿€æ´»çš„vaoä¸Š
+	glBufferData(GL_ARRAY_BUFFER, sizeof(cubeVertices), cubeVertices, GL_STATIC_DRAW);
+	//æ§½ä½0ï¼Œä½ç½®
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+	glEnableVertexAttribArray(0);//æ¿€æ´»0å·æ§½
+	//æ§½ä½1ï¼Œçº¹ç†uv
+	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+	glEnableVertexAttribArray(1);//æ¿€æ´»1å·æ§½
+	//æ§½ä½2ï¼Œä¾§é¢ã€é¡¶éƒ¨ã€åº•éƒ¨åˆ†è¾¨
+	glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(5 * sizeof(float)));
+	glEnableVertexAttribArray(2);//æ¿€æ´»2å·æ§½
+	glBindVertexArray(0);//è§£ç»‘VBO
+	glBindBuffer(GL_ARRAY_BUFFER, 0);//è§£ç»‘VBO
 
-	logInfo("vbo³õÊ¼»¯Íê³É");
+	logInfo("vboåˆå§‹åŒ–å®Œæˆ");
 }
 
-//¶¥µãË÷Òı¶ÔÏó
+//é¡¶ç‚¹ç´¢å¼•å¯¹è±¡
 std::map<std::string, unsigned int> eboMap;
 void eboInit() {
+
+	/*float squareVertices[] = {
+		-1.0f,1.0f,1.0f,//0
+		-1.0f,-1.0f,1.0f,//1
+		1.0f,-1.0f,1.0f,//2
+		1.0f,1.0f,1.0f,//3
+		-1.0f,1.0f,-1.0f,//4
+		-1.0f,-1.0f,-1.0f,//5
+		1.0f,-1.0f,-1.0f,//6
+		1.0f,1.0f,-1.0f,//7
+	};
+
 	unsigned int squareIndices[] = {
 		0,1,3,
 		3,1,2,
@@ -253,31 +315,73 @@ void eboInit() {
 		1,5,6
 	};
 
-	glGenBuffers(1, &eboMap["square"]);//´´½¨ebo»º³å
-	glBindVertexArray(vaoMap["square"]);//Ñ¡Ôñvao
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboMap["square"]);//½«ebo°ó¶¨µ½vaoÉÏ
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(squareIndices), squareIndices, GL_STATIC_DRAW);//½«Êı¾İ´«Êäµ½ÏÔ´æ
-	glBindVertexArray(0);//½â°óvao£¬·ÀÖ¹³öÏÖÎÊÌâ
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	float squareVertices2[] = {
+		-1.0f,1.0f,1.0f,
+		-1.0f,-1.0f,1.0f,
+		1.0f,-1.0f,1.0f,
+
+		1.0f,1.0f,1.0f,
+		-1.0f,-1.0f,1.0f,
+		1.0f,-1.0f,1.0f,
+
+		1.0f,1.0f,-1.0f,
+		1.0f,-1.0f,-1.0f,
+		-1.0f,-1.0f,-1.0f,
+
+		-1.0f,1.0f,-1.0f,
+		1.0f,1.0f,-1.0f,
+		-1.0f,-1.0f,-1.0f,
+
+		-1.0f,1.0f,1.0f,
+		-1.0f,-1.0f,-1.0f,
+		-1.0f,-1.0f,1.0f,
+
+		-1.0f,1.0f,1.0f,
+		-1.0f,1.0f,-1.0f,
+		-1.0f,-1.0f,-1.0f,
+
+		1.0f,1.0f,1.0f,
+		1.0f,-1.0f,1.0f,
+		1.0f,1.0f,-1.0f,
+
+		1.0f,1.0f,-1.0f,
+		1.0f,-1.0f,1.0f,
+		1.0f,-1.0f,-1.0f,
+
+		-1.0f,1.0f,-1.0f,
+		-1.0f,1.0f,1.0f,
+		1.0f,1.0f,-1.0f,
+
+		-1.0f,1.0f,1.0f,
+		1.0f,1.0f,1.0f,
+		1.0f,1.0f,-1.0f,
+
+		1.0f,-1.0f,1.0f,
+		-1.0f,-1.0f,1.0f,
+		1.0f,-1.0f,-1.0f,
+
+		-1.0f,-1.0f,1.0f,
+		-1.0f,-1.0f,-1.0f,
+		1.0f,-1.0f,-1.0f,
+	};
+
+	glGenBuffers(1, &eboMap["square"]);//åˆ›å»ºeboç¼“å†²
+	glBindVertexArray(vaoMap["square"]);//é€‰æ‹©vao
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboMap["square"]);//å°†eboç»‘å®šåˆ°vaoä¸Š
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(squareIndices), squareIndices, GL_STATIC_DRAW);//å°†æ•°æ®ä¼ è¾“åˆ°æ˜¾å­˜
+	glBindVertexArray(0);//è§£ç»‘vaoï¼Œé˜²æ­¢å‡ºç°é—®é¢˜
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);*/
 
 
 
-	logInfo("ebo³õÊ¼»¯Íê³É");
+	logInfo("eboåˆå§‹åŒ–å®Œæˆ");
 }
 
-//ÎÆÀí
-std::map<std::string, unsigned int> textureMap;
-void textureInit() {
-	
-
-	logInfo("ÎÆÀí¼ÓÔØÍê±Ï");
-}
-
-//¼üÊóÊäÈë³õÊ¼»¯
+//é”®é¼ è¾“å…¥åˆå§‹åŒ–
 void userInputInit() {
 
 
-	logInfo("¼üÊóÊäÈë³õÊ¼»¯Íê³É");
+	logInfo("é”®é¼ è¾“å…¥åˆå§‹åŒ–å®Œæˆ");
 }
 
 

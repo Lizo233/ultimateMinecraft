@@ -1,5 +1,6 @@
 #pragma once
 #include <main.h>
+#include <player.h>
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
 enum Camera_Movement {
@@ -21,18 +22,13 @@ private:
 	static constexpr double ZOOM = 45.0;
 public:
 
-
+	//这个镜头绑定的玩家
+	Player mPlayer;
 
 	//镜头的属性
 	glm::vec3 Position;
-	glm::vec3 Front;
-	glm::vec3 Up;
-	glm::vec3 Right;
 	glm::vec3 WorldUp;
 
-	//欧拉角
-	double mYaw;
-	double mPitch;
 	//镜头选项
 	double movementSpeed;
 	double mouseSensitivity;
@@ -41,35 +37,41 @@ public:
 	//获取观察矩阵
 	glm::mat4 getViewMatrix() const
 	{
-		return glm::lookAt(Position, Position + Front, Up);
+		return glm::lookAt(mPlayer.playerPos, mPlayer.playerPos + mPlayer.Front, mPlayer.Up);
 	}
 
 	//处理键盘输入
 	// processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
 	void ProcessKeyboard(Camera_Movement direction, double deltaTime)
 	{
+		movementSpeed = 10.0;
 		float velocity = movementSpeed * deltaTime;
 		if (direction == FORWARD)
-			Position += Front * velocity;
+			mPlayer.playerPos += mPlayer.Front * velocity;
 		if (direction == BACKWARD)
-			Position -= Front * velocity;
+			mPlayer.playerPos -= mPlayer.Front * velocity;
 		if (direction == LEFT)
-			Position -= Right * velocity;
+			mPlayer.playerPos -= mPlayer.Right * velocity;
 		if (direction == RIGHT)
-			Position += Right * velocity;
+			mPlayer.playerPos += mPlayer.Right * velocity;
 		if (direction == UP)
-			Position -= WorldUp * velocity;
+			mPlayer.playerPos -= WorldUp * velocity;
 		if (direction == DOWN)
-			Position += WorldUp * velocity;
+			mPlayer.playerPos += WorldUp * velocity;
 	}
 
 	//用向量初始化镜头
-	Camera(glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = YAW, float pitch = PITCH) : Front(glm::vec3(0.0f, 0.0f, -1.0)), movementSpeed(SPEED), mouseSensitivity(SENSITIVITY), zoom(ZOOM)
+	Camera(Player& player,glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = YAW, float pitch = PITCH) : movementSpeed(SPEED), mouseSensitivity(SENSITIVITY), zoom(ZOOM)
 	{
-		Position = position;
+		mPlayer = player;
+		mPlayer.playerPos = position;
+		mPlayer.mYaw = yaw;
+		mPlayer.mPitch = pitch;
+
+		mPlayer.Front = glm::vec3(0.0f, 0.0f, -1.0);
+
 		WorldUp = up;
-		mYaw = yaw;
-		mPitch = pitch;
+		mPlayer.setCamera(this);
 		updateCameraVectors();
 	}
 
@@ -79,16 +81,16 @@ public:
 		xoffset *= mouseSensitivity;
 		yoffset *= mouseSensitivity;
 
-		mYaw += xoffset;
-		mPitch += yoffset;
+		mPlayer.mYaw += xoffset;
+		mPlayer.mPitch += yoffset;
 
 		// 使得向上的角度不会超过90°，防止画面翻转
 		if (constrainPitch)
 		{
-			if (mPitch > 89.9)
-				mPitch = 89.9;
-			if (mPitch < -89.9)
-				mPitch = -89.9;
+			if (mPlayer.mPitch > 89.9)
+				mPlayer.mPitch = 89.9;
+			if (mPlayer.mPitch < -89.9)
+				mPlayer.mPitch = -89.9;
 		}
 
 		// 用新的欧拉角更新向量
@@ -111,17 +113,17 @@ private:
 	{
 		// 计算新的向前向量
 		glm::vec3 front{};
-		front.x = cos(glm::radians(mYaw)) * cos(glm::radians(mPitch));
-		front.y = sin(glm::radians(mPitch));
-		front.z = sin(glm::radians(mYaw)) * cos(glm::radians(mPitch));
-		Front = glm::normalize(front);
+		front.x = cos(glm::radians(mPlayer.mYaw)) * cos(glm::radians(mPlayer.mPitch));
+		front.y = sin(glm::radians(mPlayer.mPitch));
+		front.z = sin(glm::radians(mPlayer.mYaw)) * cos(glm::radians(mPlayer.mPitch));
+		mPlayer.Front = glm::normalize(front);
 		// 并且重新计算向上和向下的向量
-		Right = glm::normalize(glm::cross(Front, WorldUp));  // 归一化向量，因为当你看向上方或下方时向量的绝对值会减小
-		Up = glm::normalize(glm::cross(Right, Front));
+		mPlayer.Right = glm::normalize(glm::cross(mPlayer.Front, WorldUp));  // 归一化向量，因为当你看向上方或下方时向量的绝对值会减小
+		mPlayer.Up = glm::normalize(glm::cross(mPlayer.Right, mPlayer.Front));
 	}
 };
 
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(mainPlayer,glm::vec3(0.0f, 0.0f, 3.0f));
 extern double deltaTime;
 void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)

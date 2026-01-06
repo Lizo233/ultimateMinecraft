@@ -19,16 +19,22 @@ link_directories(
 
 #将include其下所有.c/.cpp文件编译
 file(GLOB_RECURSE CPPS ./*.c *.cpp)
-add_library(cpps ${CPPS})
+add_library(cpps ${CPPS} "include/player.h" "include/texture.h")
 
 #将素材文件夹复制到执行目录
 file(GLOB ASSETS "./assets" )
 file(COPY ${ASSETS} DESTINATION ${CMAKE_BINARY_DIR})
 
-#生成exe
-add_executable(my_Minecraft "main.cpp")
+#用utf-8编译
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
 
-target_link_libraries(my_Minecraft glfw3.lib cpps)
+#已在CMakeSettings.json将当前项目设置为Debug模式
+
+#生成exe
+add_executable(my_Minecraft "main.cpp" "include/texture.h")
+
+target_link_libraries(my_Minecraft glfw3.lib fmtd.lib cpps)
 
 #跨平台兼容（使用tinyfiledialogs）
 if(UNIX AND NOT APPLE)

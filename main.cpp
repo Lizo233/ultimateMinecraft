@@ -1,83 +1,142 @@
 #include <main.h>
-#include <camera.h>//¾µÍ·
-#include <shader.h>//×ÅÉ«Æ÷
+#include <camera.h>//ç›¸æœº
+#include <shader.h>//ç€è‰²å™¨
+#include <player.h>//ç©å®¶
+#include <texture.h>//æè´¨åŠ è½½
 
 int main() {
 
-	//ÈÕÖ¾ÏµÍ³
+	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
+
+	//æ—¥å¿—ç³»ç»Ÿ
 	logSystemInit();
 
-	//·½¿éÊı¾İ³õÊ¼»¯
+	//æ–¹å—æ•°æ®åˆå§‹åŒ–
 	BlockDataInitial();
 	
-	//OpenGL³õÊ¼»¯
+	//OpenGLåˆå§‹åŒ–
 	GLFWwindow* window = OGLInitial();
-	if (!window) return -1;//´°¿Ú³õÊ¼»¯Ê§°Ü
+	if (!window) return -1;//çª—å£åˆå§‹åŒ–å¤±è´¥
 
-	//×¼±¸äÖÈ¾
+	//å‡†å¤‡æ¸²æŸ“
 	vaoInit();
 	vboInit();
-	eboInit();
+	//eboInit(); æš‚æ—¶ä¸ä½¿ç”¨eboäº†ï¼Œå› ä¸ºè¦ä¸Šæè´¨
 	textureInit();
 	shaderInit();
 	
-	//¼üÊóÊäÈë³õÊ¼»¯
-	//³õÊ¼»¯¾µÍ·
-	
+	//é”®é¼ è¾“å…¥åˆå§‹åŒ–
 
 	userInputInit();
 	
-	//°ó¶¨Í¸ÊÓÍ¶Ó°¾ØÕó
-	glUniformBlockBinding(cubeShader->shaderProgramID,glGetUniformBlockIndex(cubeShader->shaderProgramID, "Matrices"), 0);
-	uint32_t uboMatrices;
-	glGenBuffers(1, &uboMatrices);
-	glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-	glBufferData(GL_UNIFORM_BUFFER, 2 * sizeof(glm::mat4), NULL, GL_STATIC_DRAW);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	// define the range of the buffer that links to a uniform binding point
-	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0, 2 * sizeof(glm::mat4));
+	//ç»‘å®šé€è§†å’ŒæŠ•å½±çŸ©é˜µ
+	uboInit();
 
-	// store the projection matrix (we only do this once now) (note: we're not using zoom anymore by changing the FoV)
-	glm::mat4 projection = glm::perspective(45.0, (double)DEFAULT_WIDTH / DEFAULT_HEIGHT, 0.1, 100.0);
-	glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
-	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+	//OpenGLçŠ¶æ€è®¾ç½®ç¯èŠ‚
+	glEnable(GL_DEPTH_TEST);//å¼€å¯æ·±åº¦æµ‹è¯•
+	glEnable(GL_CULL_FACE);//å¼€å¯é¢å‰”é™¤ï¼Œæ³¨æ„ä¸‰è§’å½¢é¡¶ç‚¹å¿…é¡»æ˜¯é€†æ—¶é’ˆæ—‹è½¬çš„
 
-	//OpenGL×´Ì¬ÉèÖÃ»·½Ú
-	glEnable(GL_DEPTH_TEST);//¿ªÆôÉî¶È²âÊÔ
-	glEnable(GL_CULL_FACE);//¿ªÆôÃæÌŞ³ı£¬×¢ÒâÈı½ÇĞÎ¶¥µã±ØĞëÊÇÄæÊ±ÕëĞı×ªµÄ
+	mainPlayer.setCamera(&camera);
 
-	auto time = std::chrono::high_resolution_clock::now();
-	
-	logInfo("Ö÷Ñ­»·¿ªÊ¼");
+	cubeShader->setUniInt("texture0", 0);
+
+
+
+	//å®ä¾‹åŒ–
+
+	cubeShader->active();
+	glBindVertexArray(vaoMap["cube"]);
+	unsigned int amount = 100000;
+	glm::mat4* modelMatrices;
+	modelMatrices = new glm::mat4[amount];
+	srand(static_cast<unsigned int>(glfwGetTime())); // initialize random seed
+	float radius = 150.0;
+	float offset = 25.0f;
+	for (unsigned int i = 0; i < amount; i++)
+	{
+		glm::mat4 model = glm::mat4(1.0f);
+		// 1. translation: displace along circle with 'radius' in range [-offset, offset]
+		float angle = (float)i / (float)amount * 360.0f;
+		float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float x = sin(angle) * radius + displacement;
+		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
+		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
+		float z = cos(angle) * radius + displacement;
+		model = glm::translate(model, glm::vec3(x, y, z));
+
+		// 2. scale: Scale between 0.05 and 0.25f
+		float scale = static_cast<float>(((rand() % 20) / 100.0 + 0.05)*3);
+		model = glm::scale(model, glm::vec3(scale));
+
+		// 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
+		float rotAngle = static_cast<float>((rand() % 360));
+		model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
+
+		// 4. now add to list of matrices
+		modelMatrices[i] = model;
+	}
+
+	// configure instanced array
+	// -------------------------
+	unsigned int buffer;
+	glGenBuffers(1, &buffer);
+	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+
+	// set transformation matrices as an instance vertex attribute (with divisor 1)
+	// note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
+	// normally you'd want to do this in a more organized fashion, but for learning purposes this will do.
+	// -----------------------------------------------------------------------------------------------------------------------------------
+		glBindVertexArray(vaoMap["cube"]);
+		// set attribute pointers for matrix (4 times vec4)
+		glEnableVertexAttribArray(3);
+		glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
+		glEnableVertexAttribArray(4);
+		glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
+		glEnableVertexAttribArray(5);
+		glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
+		glEnableVertexAttribArray(6);
+		glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
+
+		glVertexAttribDivisor(3, 1);
+		glVertexAttribDivisor(4, 1);
+		glVertexAttribDivisor(5, 1);
+		glVertexAttribDivisor(6, 1);
+
+		glBindVertexArray(0);
+
+	logInfo("ä¸»å¾ªç¯å¼€å§‹");
 	while (!glfwWindowShouldClose(window)) {
-		//Ê±¼ä
+		//æ—¶é—´æ›´æ–°ï¼ŒdeltaTimeæ›´æ–°
 		timeUpdate();
-		//ÉèÖÃÇåÆÁ
+		//æ¸…å±
 		clearScreen();
 
-		//»ñÈ¡view¾ØÕó
+		//è·å–viewçŸ©é˜µ
 		glm::mat4 view = camera.getViewMatrix();
-		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);
+		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);//ç»‘å®šubo
+		//ä¼ è¾“viewçŸ©é˜µåˆ°æ˜¾å­˜ï¼Œå¹¶å°†å®ƒçš„åç§»é‡è®¾ç½®ä¸ºsizeof(glm::mat4)ä½¿å¾—å®ƒä¸ä¼šè¦†ç›–projectionçŸ©é˜µ
 		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
-		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);//è§£ç»‘ubo
 
-		//»æ»­
+		//ç»˜ç”»
 		cubeShader->active();
-		cubeShader->setUniMat4("model", glm::scale(glm::mat4(1.0),glm::vec3(0.5)));
-		glBindVertexArray(vaoMap["square"]);
-		glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
+		cubeShader->setUniMat4("model", glm::scale(glm::mat4(1.0),glm::vec3(1.0)));//è®¾ç½®ä½ç§»ã€æ—‹è½¬ã€ç¼©æ”¾çŸ©é˜µ
+		glBindVertexArray(vaoMap["cube"]);
+		//glDrawArrays(GL_TRIANGLES, 0, 36);
+		glDrawArraysInstanced(GL_TRIANGLES, 0, 36, amount);
 
-		//´¦ÀíÓÃ»§µÄÊäÈë
+		//å¤„ç†ç”¨æˆ·çš„è¾“å…¥
 		processInput(window);
 		
 
-		//Ä¬ÈÏ´¦Àí´°¿ÚÏûÏ¢µÄº¯Êı
+		//é»˜è®¤å¤„ç†çª—å£æ¶ˆæ¯çš„å‡½æ•°
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
 	glfwTerminate();
-	logWarn("ÓÎÏ·Õı³£ÍË³ö");
+	logWarn("æ¸¸æˆæ­£å¸¸é€€å‡º");
 	return 0;
 }
