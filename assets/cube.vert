@@ -1,4 +1,4 @@
-#version 330 core
+ï»¿#version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 2) in int aFace;
@@ -10,7 +10,6 @@ layout (std140) uniform Matrices
     mat4 view;
 };
 uniform mat4 model;
-uniform mat4 offsets[100];
 
 out vec2 TexCoord;
 out float face;
@@ -20,8 +19,11 @@ void main()
     TexCoord = aTexCoord;
     face = aFace;
     
-    //ÊµÀý»¯
-    mat4 offsetModel = offsets[gl_InstanceID] * model;
+    //å®žä¾‹åŒ–
 
-    gl_Position = projection * view * instanceMatrix * vec4(aPos, 1.0);
+    if (false) {
+        gl_Position = projection * view * instanceMatrix * vec4(aPos+vec3(0.0,0.001,0.0), 1.0);
+    } else {
+        gl_Position = projection * view * instanceMatrix * vec4(aPos, 1.0);
+    }
 }  

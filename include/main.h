@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 #include <string>
 #include <functional>
 #include <vector>
@@ -36,6 +36,7 @@ double lastFrame;
 //多线程
 std::map<std::string,std::mutex> mtxMap;
 
+//获取 2026-01-16 23-29-36 格式的时间(YYYY-MM-DD hh-mm-ss)
 std::string getTime() {
 	time_t time_a;
 	time(&time_a);
@@ -44,6 +45,7 @@ std::string getTime() {
 	return tmp;
 }
 
+//日志系统启动
 std::fstream LogFile;
 int logSystemInit() {
 
@@ -62,20 +64,20 @@ int logSystemInit() {
 	return 0;
 }
 
-void logInfo(std::string logText) {
-	LogFile << "[INFO] " + logText + '\n';
+void inline logInfo(const std::string_view logText) {
+	LogFile << "[INFO] " << logText << '\n';
 }
-void logWarn(std::string logText) {
-	LogFile << "[WARN] " + logText + '\n';
+void inline logWarn(const std::string_view logText) {
+	LogFile << "[WARN] " << logText << '\n';
 }
-void logError(std::string logText) {
-	LogFile << "[ERROR] " + logText << std::endl;
+void inline logError(const std::string_view logText) {
+	LogFile << "[ERROR] " << logText << std::endl;
 }
-void logFatal(std::string logText) {
-	LogFile << "[FATAL] " + logText << std::endl;
+void inline logFatal(const std::string_view logText) {
+	LogFile << "[FATAL] " << logText << std::endl;
 }
-void logPanic(std::string logText) {
-	LogFile << "[PANIC] " + logText << std::endl;
+void inline logPanic(const std::string_view logText) {
+	LogFile << "[PANIC] " << logText << std::endl;
 }
 
 //自定义UUID
@@ -152,13 +154,14 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 }
 
 //为了运行，只能出此下策，注意main.cpp必须包含camera.h！
+//挨算了，既然他能用就不要动了吧（滑稽）
 extern void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
 //OpenGL初始化
 GLFWwindow* OGLInitial() {
-	GLFWwindow* mWindow;
 	
+	GLFWwindow* mWindow;
 	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);//OpenGL版本设置为 4.6
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 #ifdef __APPLE__

@@ -1,4 +1,4 @@
-#version 330 core
+ï»¿#version 330 core
 uniform sampler2D texture0;
 
 in vec2 TexCoord;
@@ -6,20 +6,22 @@ in float face;
 
 out vec4 FragColor;
 
-//FragColor = texture(texture0, TexCoord*0.5+vec2(0,0.5));//²àÃæ
-//FragColor = texture(texture0, TexCoord*0.5+vec2(0.5,0.5));//µ×²¿
-//FragColor = texture(texture0, TexCoord*0.5+vec2(0,0));//¶¥²¿
+//FragColor = texture(texture0, TexCoord*0.5+vec2(0,0.5));//ä¾§é¢
+//FragColor = texture(texture0, TexCoord*0.5+vec2(0.5,0.5));//åº•éƒ¨
+//FragColor = texture(texture0, TexCoord*0.5+vec2(0,0));//é¡¶éƒ¨
 
 
 
 void main()
 {
     if (face == 0.0) {
-        FragColor = texture(texture0, TexCoord*0.5+vec2(0,0.5));//²àÃæ
+        FragColor = texture(texture0, TexCoord*0.5+vec2(0,0.5));//ä¾§é¢
     } else if (face<0) {
-        FragColor = texture(texture0, TexCoord*0.5+vec2(0.5,0.5));//µ×²¿
+        FragColor = texture(texture0, TexCoord*0.5+vec2(0.5,0.5));//åº•éƒ¨
     } else if (face>0) {
-        FragColor = vec4(vec3(texture(texture0, TexCoord*0.5+vec2(0,0)).r*0.63,texture(texture0, TexCoord*0.5+vec2(0,0)).r*1.0,texture(texture0, TexCoord*0.5+vec2(0,0)).r*0.54)*0.8,1.0);//¶¥²¿
-        //TMDÕâ¼òÖ±ÍêÈ«Ò»Ñù£¬¹ş¹ş¹ş¹ş£¬ÎÒÊÇÌì²Å£¡
+        FragColor = vec4(vec3(texture(texture0, TexCoord*0.5+vec2(0,0)).r*0.63,texture(texture0, TexCoord*0.5+vec2(0,0)).r*1.0,texture(texture0, TexCoord*0.5+vec2(0,0)).r*0.54)*0.8,1.0);//é¡¶éƒ¨
+        //TMDè¿™ç®€ç›´å®Œå…¨ä¸€æ ·ï¼Œå“ˆå“ˆå“ˆå“ˆï¼Œæˆ‘æ˜¯å¤©æ‰ï¼
     }
+    //MSAAæµ‹è¯•ï¼ˆçº¯è‰²ï¼‰
+    //FragColor = vec4(0.0,0.8,0.0,1.0);
 }

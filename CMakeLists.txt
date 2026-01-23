@@ -1,4 +1,4 @@
-#需求的最低cmake程序版本
+﻿#需求的最低cmake程序版本
 cmake_minimum_required(VERSION 3.12)
 
 #本工程的名字
@@ -19,7 +19,7 @@ link_directories(
 
 #将include其下所有.c/.cpp文件编译
 file(GLOB_RECURSE CPPS ./*.c *.cpp)
-add_library(cpps ${CPPS} "include/player.h" "include/texture.h")
+add_library(cpps ${CPPS})
 
 #将素材文件夹复制到执行目录
 file(GLOB ASSETS "./assets" )
@@ -32,7 +32,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
 #已在CMakeSettings.json将当前项目设置为Debug模式
 
 #生成exe
-add_executable(my_Minecraft "main.cpp" "include/texture.h")
+add_executable(my_Minecraft "main.cpp")
 
 target_link_libraries(my_Minecraft glfw3.lib fmtd.lib cpps)
 

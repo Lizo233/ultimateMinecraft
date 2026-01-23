@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include <main.h>
 #include <player.h>
 
 // Defines several possible options for camera movement. Used as abstraction to stay away from window-system specific input methods
-enum Camera_Movement {
+enum class Camera_Movement {
 	FORWARD,
 	BACKWARD,
 	LEFT,
@@ -14,54 +14,54 @@ enum Camera_Movement {
 
 class Camera {
 private:
-	//³£Á¿ÉùÃ÷
-	static constexpr double YAW = -90.0;
-	static constexpr double PITCH = 0.0;
-	static constexpr double SPEED = 2.5;
-	static constexpr double SENSITIVITY = 0.1;
-	static constexpr double ZOOM = 45.0;
+	//å¸¸é‡å£°æ˜
+	static constexpr double DEFAULT_YAW = -90.0;
+	static constexpr double DEFAULT_PITCH = 0.0;
+	static constexpr double DEFAULT_SPEED = 2.5;
+	static constexpr double DEFAULT_SENSITIVITY = 0.1;
+	static constexpr double DEFAULT_ZOOM = 45.0;
 public:
 
-	//Õâ¸ö¾µÍ·°ó¶¨µÄÍæ¼Ò
+	//è¿™ä¸ªé•œå¤´ç»‘å®šçš„ç©å®¶
 	Player mPlayer;
 
-	//¾µÍ·µÄÊôĞÔ
+	//é•œå¤´çš„å±æ€§
 	glm::vec3 Position;
 	glm::vec3 WorldUp;
 
-	//¾µÍ·Ñ¡Ïî
+	//é•œå¤´é€‰é¡¹
 	double movementSpeed;
 	double mouseSensitivity;
 	double zoom;
 
-	//»ñÈ¡¹Û²ì¾ØÕó
+	//è·å–è§‚å¯ŸçŸ©é˜µ
 	glm::mat4 getViewMatrix() const
 	{
 		return glm::lookAt(mPlayer.playerPos, mPlayer.playerPos + mPlayer.Front, mPlayer.Up);
 	}
 
-	//´¦Àí¼üÅÌÊäÈë
+	//å¤„ç†é”®ç›˜è¾“å…¥
 	// processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
 	void ProcessKeyboard(Camera_Movement direction, double deltaTime)
 	{
-		movementSpeed = 10.0;
+		movementSpeed = 2.5*4;
 		float velocity = movementSpeed * deltaTime;
-		if (direction == FORWARD)
+		if (direction == Camera_Movement::FORWARD)
 			mPlayer.playerPos += mPlayer.Front * velocity;
-		if (direction == BACKWARD)
+		if (direction == Camera_Movement::BACKWARD)
 			mPlayer.playerPos -= mPlayer.Front * velocity;
-		if (direction == LEFT)
+		if (direction == Camera_Movement::LEFT)
 			mPlayer.playerPos -= mPlayer.Right * velocity;
-		if (direction == RIGHT)
+		if (direction == Camera_Movement::RIGHT)
 			mPlayer.playerPos += mPlayer.Right * velocity;
-		if (direction == UP)
+		if (direction == Camera_Movement::UP)
 			mPlayer.playerPos -= WorldUp * velocity;
-		if (direction == DOWN)
+		if (direction == Camera_Movement::DOWN)
 			mPlayer.playerPos += WorldUp * velocity;
 	}
 
-	//ÓÃÏòÁ¿³õÊ¼»¯¾µÍ·
-	Camera(Player& player,glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = YAW, float pitch = PITCH) : movementSpeed(SPEED), mouseSensitivity(SENSITIVITY), zoom(ZOOM)
+	//ç”¨å‘é‡åˆå§‹åŒ–é•œå¤´
+	Camera(Player& player,glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = DEFAULT_YAW, float pitch = DEFAULT_PITCH) : movementSpeed(DEFAULT_SPEED), mouseSensitivity(DEFAULT_SENSITIVITY), zoom(DEFAULT_ZOOM)
 	{
 		mPlayer = player;
 		mPlayer.playerPos = position;
@@ -75,7 +75,7 @@ public:
 		updateCameraVectors();
 	}
 
-	//´¦ÀíÊó±êÒÆ¶¯ÏûÏ¢£¬»­Ãæ»áÉÏÏÂ×óÓÒÒÆ¶¯.
+	//å¤„ç†é¼ æ ‡ç§»åŠ¨æ¶ˆæ¯ï¼Œç”»é¢ä¼šä¸Šä¸‹å·¦å³ç§»åŠ¨.
 	void ProcessMouseMovement(double xoffset, double yoffset, GLboolean constrainPitch = true)
 	{
 		xoffset *= mouseSensitivity;
@@ -84,7 +84,7 @@ public:
 		mPlayer.mYaw += xoffset;
 		mPlayer.mPitch += yoffset;
 
-		// Ê¹µÃÏòÉÏµÄ½Ç¶È²»»á³¬¹ı90¡ã£¬·ÀÖ¹»­Ãæ·­×ª
+		// ä½¿å¾—å‘ä¸Šçš„è§’åº¦ä¸ä¼šè¶…è¿‡90Â°ï¼Œé˜²æ­¢ç”»é¢ç¿»è½¬
 		if (constrainPitch)
 		{
 			if (mPlayer.mPitch > 89.9)
@@ -93,11 +93,11 @@ public:
 				mPlayer.mPitch = -89.9;
 		}
 
-		// ÓÃĞÂµÄÅ·À­½Ç¸üĞÂÏòÁ¿
+		// ç”¨æ–°çš„æ¬§æ‹‰è§’æ›´æ–°å‘é‡
 		updateCameraVectors();
 	}
 
-	//´¦Àí¹öÂÖÏûÏ¢£¬Ê¹»­Ãæ·Å´ó»òËõĞ¡
+	//å¤„ç†æ»šè½®æ¶ˆæ¯ï¼Œä½¿ç”»é¢æ”¾å¤§æˆ–ç¼©å°
 	void processMouseScroll(double yoffset)
 	{
 		zoom -= yoffset;
@@ -108,45 +108,45 @@ public:
 	}
 
 private:
-	//Í¨¹ı¸üĞÂºóµÄÅ·À­½Ç¼ÆËã¾µÍ·µÄÇ°·½ÏòÏòÁ¿
+	//é€šè¿‡æ›´æ–°åçš„æ¬§æ‹‰è§’è®¡ç®—é•œå¤´çš„å‰æ–¹å‘å‘é‡
 	void updateCameraVectors()
 	{
-		// ¼ÆËãĞÂµÄÏòÇ°ÏòÁ¿
+		// è®¡ç®—æ–°çš„å‘å‰å‘é‡
 		glm::vec3 front{};
 		front.x = cos(glm::radians(mPlayer.mYaw)) * cos(glm::radians(mPlayer.mPitch));
 		front.y = sin(glm::radians(mPlayer.mPitch));
 		front.z = sin(glm::radians(mPlayer.mYaw)) * cos(glm::radians(mPlayer.mPitch));
 		mPlayer.Front = glm::normalize(front);
-		// ²¢ÇÒÖØĞÂ¼ÆËãÏòÉÏºÍÏòÏÂµÄÏòÁ¿
-		mPlayer.Right = glm::normalize(glm::cross(mPlayer.Front, WorldUp));  // ¹éÒ»»¯ÏòÁ¿£¬ÒòÎªµ±Äã¿´ÏòÉÏ·½»òÏÂ·½Ê±ÏòÁ¿µÄ¾ø¶ÔÖµ»á¼õĞ¡
+		// å¹¶ä¸”é‡æ–°è®¡ç®—å‘ä¸Šå’Œå‘ä¸‹çš„å‘é‡
+		mPlayer.Right = glm::normalize(glm::cross(mPlayer.Front, WorldUp));  // å½’ä¸€åŒ–å‘é‡ï¼Œå› ä¸ºå½“ä½ çœ‹å‘ä¸Šæ–¹æˆ–ä¸‹æ–¹æ—¶å‘é‡çš„ç»å¯¹å€¼ä¼šå‡å°
 		mPlayer.Up = glm::normalize(glm::cross(mPlayer.Right, mPlayer.Front));
 	}
 };
 
-Camera camera(mainPlayer,glm::vec3(0.0f, 0.0f, 3.0f));
+Camera camera(mainPlayer,glm::vec3(0.0, 1.5, 3.0));
 extern double deltaTime;
 void processInput(GLFWwindow* window) {
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
-		glfwSetWindowShouldClose(window, true);//Q¼ü¹Ø±Õ´°¿Ú
+		glfwSetWindowShouldClose(window, true);//Qé”®å…³é—­çª—å£
 
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
 
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.ProcessKeyboard(FORWARD, deltaTime);
+		camera.ProcessKeyboard(Camera_Movement::FORWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
-		camera.ProcessKeyboard(BACKWARD, deltaTime);
+		camera.ProcessKeyboard(Camera_Movement::BACKWARD, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
-		camera.ProcessKeyboard(LEFT, deltaTime);
+		camera.ProcessKeyboard(Camera_Movement::LEFT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
-		camera.ProcessKeyboard(RIGHT, deltaTime);
+		camera.ProcessKeyboard(Camera_Movement::RIGHT, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
-		camera.ProcessKeyboard(UP, deltaTime);
+		camera.ProcessKeyboard(Camera_Movement::UP, deltaTime);
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
-		camera.ProcessKeyboard(DOWN, deltaTime);
+		camera.ProcessKeyboard(Camera_Movement::DOWN, deltaTime);
 }
 
-//Êó±êÒÆ¶¯»Øµ÷º¯Êı
+//é¼ æ ‡ç§»åŠ¨å›è°ƒå‡½æ•°
 void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 {
 	static double lastX = DEFAULT_WIDTH / 2;
