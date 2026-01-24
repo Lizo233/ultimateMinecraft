@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <main.h>
 
 
@@ -118,6 +118,9 @@ void shaderInit() {
 
 //生成ubo
 uint32_t uboMatrices;//设置为全局变量方便读取
+
+//投影矩阵只需要计算一次（如果不改变FOV的话）此为透视投影矩阵
+glm::mat4 projection = glm::perspective(glm::radians(60.0), (double)DEFAULT_WIDTH / DEFAULT_HEIGHT, 0.1, 1000.0);
 void uboInit() {
 
 	//把这个shaderProgram的对应的UniformBlock绑定到BindingPoint0
@@ -131,8 +134,6 @@ void uboInit() {
 	//绑定ubo的显存起点为BindingPoint0的地址
 	glBindBufferRange(GL_UNIFORM_BUFFER, 0, uboMatrices, 0, 2 * sizeof(glm::mat4));
 
-	//投影矩阵只需要计算一次（如果不改变FOV的话）此为透视投影矩阵
-	glm::mat4 projection = glm::perspective(45.0, (double)DEFAULT_WIDTH / DEFAULT_HEIGHT, 0.1, 1000.0);
 	glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);//绑定ubo
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(glm::mat4), glm::value_ptr(projection));//传输矩阵到显存
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);//解绑ubo
