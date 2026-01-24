@@ -1,4 +1,4 @@
-﻿#include <main.h>
+#include <main.h>
 #include <camera.h>//相机
 #include <shader.h>//着色器
 #include <player.h>//玩家
@@ -51,11 +51,28 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 
 	cubeShader->setUniInt("texture0", 0);
 
+	//世界位置矩阵（模型矩阵）初始化
+	unsigned int amount = 100;
+	modelMatrices = new glm::mat4[amount];
+
+	static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
+	//默认将草方块铺成一个10x10的平面，位于y=-1.0处
+	for (int i = 0; i < 10; i++) {
+		for (int j = 0; j < 10; j++) {
+			modelMatrices[i * 10 + j] = glm::translate(unitMat, glm::vec3(i - 5, -1.0, j - 5));
+		}
+	}
+
+	//游戏部分
+
+	//区块初始化
+	initChunks();
+	Chunk chunkA(0, 0, 0);
+
+	chunkA.getMatrix(modelMatrices);
+
 	//实例化
 
-	unsigned int amount = 10000;
-	glm::mat4* modelMatrices;
-	modelMatrices = new glm::mat4[amount];
 	srand(static_cast<unsigned int>(glfwGetTime()*10000));//初始化随机数种子，*10000是为了增大随机性，此时glfwGetTime∈(0,1)
 	float radius = 15.0f;
 	float offset = 2.50f;
@@ -83,15 +100,6 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 		// 4. now add to list of matrices
 		modelMatrices[i] = model;
 	}*/
-	for (int i = 0; i < 100; i++) {
-		static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
-		glm::mat4 model;
-
-		for (int j = 0; j < 100; j++) {
-			model = glm::translate(unitMat, glm::vec3(i - 50, -1.0, j - 50));
-			modelMatrices[i * 100 + j] = model;
-		}
-	}
 
 	
 	// configure instanced array

@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <string>
 #include <functional>
 #include <vector>
@@ -60,7 +60,8 @@ int logSystemInit() {
 		return 1; // 文件打开失败
 	}
 
-	LogFile << "日志系统已启动\n" << std::endl; // 写入文本
+	//在Log文件中写入BOM
+	LogFile << "\xEF\xBB\xBF" << "日志系统已启动\n" << std::endl; // 写入文本
 	return 0;
 }
 
