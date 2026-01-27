@@ -2,7 +2,7 @@
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
 layout (location = 2) in int aFace;
-layout (location = 3) in mat4 instanceMatrix;
+layout (location = 3) in vec3 instanceVector;
 
 layout (std140) uniform Matrices
 {
@@ -14,16 +14,24 @@ uniform mat4 model;
 out vec2 TexCoord;
 out float face;
 
+//矩阵位移函数
+mat4 translate(mat4 m,vec3 t) {
+    m[3] = m[0] * t.x + m[1] * t.y + m[2] * t.z + m[3];
+    return m;
+}
+
 void main()
 {
     TexCoord = aTexCoord;
     face = aFace;
-    
+
     //实例化
 
-    if (false) {
-        gl_Position = projection * view * instanceMatrix * vec4(aPos+vec3(0.0,0.001,0.0), 1.0);
-    } else {
-        gl_Position = projection * view * instanceMatrix * vec4(aPos, 1.0);
-    }
+    // 构造位移矩阵
+    mat4 trans = mat4(1.0, 0.0, 0.0, 0.0,
+                      0.0, 1.0, 0.0, 0.0,
+                      0.0, 0.0, 1.0, 0.0,
+                      instanceVector, 1.0);
+
+    gl_Position = projection * view * trans * vec4(aPos, 1.0);
 }  

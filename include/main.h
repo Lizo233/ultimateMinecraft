@@ -10,6 +10,8 @@
 #include <map>
 #include <chrono>
 #include <mutex>
+#include <sstream>
+#include <iterator>
 
 //第三方库
 #include <glad/glad.h>
@@ -23,7 +25,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <fmt/core.h>
 #include <fmt/color.h>
-
+#include <zlib/zlib.h>
 
 //各个常量
 constexpr int DEFAULT_WIDTH = 1600;
@@ -388,4 +390,69 @@ void userInputInit() {
 	logInfo("键鼠输入初始化完成");
 }
 
+//zlib 压缩
+// 压缩字符串
+std::string compress_string(const std::string& input) {
+	if (input.empty()) return {};
 
+	// 计算最大压缩后大小
+	uLong compressed_size = compressBound(static_cast<uLong>(input.size()));
+	std::vector<Bytef> buffer(compressed_size);
+
+	int result = compress(
+		buffer.data(),
+		&compressed_size,
+		reinterpret_cast<const Bytef*>(input.data()),
+		static_cast<uLong>(input.size())
+	);
+
+	if (result != Z_OK) {
+		throw std::runtime_error("zlib compress failed");
+	}
+
+	return std::string(reinterpret_cast<char*>(buffer.data()), compressed_size);
+}
+
+//解压字符串
+std::string decompress_string(const std::string& compressed) {
+	if (compressed.empty()) return {};
+
+	// 先获取原始大小（需要两次调用 inflate）
+	z_stream strm{};
+	strm.next_in = (Bytef*)compressed.data();
+	strm.avail_in = static_cast<uInt>(compressed.size());
+
+	// 初始化 inflate
+	if (inflateInit(&strm) != Z_OK) {
+		throw std::runtime_error("inflateInit failed");
+	}
+
+	// 先估算输出大小（或动态扩展）
+	std::string output;
+	const size_t chunk_size = 8192;
+	output.resize(chunk_size);
+	int ret;
+
+	do {
+		strm.next_out = reinterpret_cast<Bytef*>(&output[strm.total_out]);
+		strm.avail_out = static_cast<uInt>(output.size() - strm.total_out);
+
+		ret = inflate(&strm, Z_NO_FLUSH);
+
+		if (ret == Z_STREAM_END) break;
+
+		if (ret != Z_OK) {
+			inflateEnd(&strm);
+			throw std::runtime_error("inflate failed");
+		}
+
+		// 如果缓冲区不够，扩容
+		if (strm.avail_out == 0) {
+			output.resize(output.size() + chunk_size);
+		}
+	} while (true);
+
+	output.resize(strm.total_out);
+	inflateEnd(&strm);
+	return output;
+}

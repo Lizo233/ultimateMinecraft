@@ -34,7 +34,7 @@ set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8")
 #生成exe
 add_executable(my_Minecraft "main.cpp")
 
-target_link_libraries(my_Minecraft glfw3.lib fmtd.lib cpps)
+target_link_libraries(my_Minecraft glfw3.lib fmtd.lib zlibstatic.lib cpps)
 
 #跨平台兼容（使用tinyfiledialogs）
 if(UNIX AND NOT APPLE)

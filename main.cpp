@@ -5,14 +5,14 @@
 #include <texture.h>//材质加载
 #include <game.h>//游戏功能
 
-int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
-	
+int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
+
 
 
 	//std::function<int(int&, int&)> addAlias = [](int& a, int& b) {return a + b; };
-	
+
 	//loadChunks("Hello World eee");
-	
+
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
 
 	//日志系统
@@ -20,10 +20,12 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 
 	//方块数据初始化
 	BlockDataInitial();
-	
+
 	//OpenGL初始化
 	GLFWwindow* window = OGLInitial();
 	if (!window) return -1;//窗口初始化失败
+
+	//注意使用 glGet(参数) 需要在OGL初始化之后才能用，不然会引发异常
 
 	//准备渲染
 	vaoInit();
@@ -31,11 +33,11 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 	//eboInit(); 暂时不使用ebo了，因为要上材质
 	textureInit();
 	shaderInit();
-	
+
 	//键鼠输入初始化
 
 	userInputInit();
-	
+
 	//绑定透视和投影矩阵
 	uboInit();
 
@@ -53,23 +55,50 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 
 	//世界位置矩阵（模型矩阵）初始化
 	unsigned int amount = 100;
-	modelMatrices = new glm::mat4[amount];
+	modelVecs = new glm::vec3[amount];
 
-	static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
+	//static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
 	//默认将草方块铺成一个10x10的平面，位于y=-1.0处
 	for (int i = 0; i < 10; i++) {
 		for (int j = 0; j < 10; j++) {
-			modelMatrices[i * 10 + j] = glm::translate(unitMat, glm::vec3(i - 5, -1.0, j - 5));
+			modelVecs[i * 10 + j] = glm::vec3(i - 5, -1, j - 5);
 		}
 	}
 
 	//游戏部分
 
+	unsigned int vecIndex = 0;
+
 	//区块初始化
 	initChunks();
-	Chunk chunkA(0, 0, 0);
 
-	chunkA.getMatrix(modelMatrices);
+	Chunk chunkA(1, 0, 0);
+	//chunkA.initChunk();//加载区块数据
+
+	//vecIndex = chunkA.getVecs(modelVecs, vecIndex);
+
+	//保存
+
+	// 1. 用 cereal 序列化到内存
+	//std::ostringstream oss;
+	//cereal::BinaryOutputArchive oar(oss);
+	//oar(chunkA);
+	//std::string serialized = oss.str();
+
+	//// 2. 用 zlib 压缩
+	//std::string compressed = compress_string(serialized);
+
+	//// 3. 写入文件
+	//std::ofstream file("data.bin", std::ios::binary);
+	//file.write(compressed.data(), compressed.size());
+
+	//读取
+
+	Chunk chunkB;
+
+	chunkB.loadChunk("data.bin");
+
+	vecIndex = chunkB.getVecs(modelVecs, vecIndex);
 
 	//实例化
 
@@ -108,7 +137,7 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 	glGenBuffers(1, &instanceBuffer);
 	glBindVertexArray(vaoMap["cube"]);//绑定vao（其实在设置vao属性之前执行绑定vao也行，但为了防止你迷惑）
 	glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);//把instanceBuffer绑定到openGL的vbo槽位上
-	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::mat4), &modelMatrices[0], GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::vec3), modelVecs, GL_STATIC_DRAW);
 
 	// set transformation matrices as an instance vertex attribute (with divisor 1)
 	// note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
@@ -117,18 +146,8 @@ int main(char argc,char *argv[],char *envp[]) {//也许会用到envp和argv?
 	// set attribute pointers for matrix (4 times vec4)
 	//glBindVertexArray(vaoMap["cube"]);//在这里绑定vao也是可行的
 	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)0);
-	glEnableVertexAttribArray(4);
-	glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(sizeof(glm::vec4)));
-	glEnableVertexAttribArray(5);
-	glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(2 * sizeof(glm::vec4)));
-	glEnableVertexAttribArray(6);
-	glVertexAttribPointer(6, 4, GL_FLOAT, GL_FALSE, sizeof(glm::mat4), (void*)(3 * sizeof(glm::vec4)));
-
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
 	glVertexAttribDivisor(3, 1);
-	glVertexAttribDivisor(4, 1);
-	glVertexAttribDivisor(5, 1);
-	glVertexAttribDivisor(6, 1);
 
 	glBindVertexArray(0);//解绑vao
 
