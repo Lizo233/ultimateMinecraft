@@ -8,12 +8,10 @@
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
-
-	//std::function<int(int&, int&)> addAlias = [](int& a, int& b) {return a + b; };
-
-	//loadChunks("Hello World eee");
-
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
+
+	//将本地化设置为UTF-8
+	std::locale::global(std::locale("en_US.UTF-8"));
 
 	//日志系统
 	logSystemInit();
@@ -46,8 +44,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	glEnable(GL_CULL_FACE);//开启面剔除，注意三角形顶点必须是逆时针旋转的
 
 	//MSAA（感觉效果不是很明显）
-	glfwWindowHint(GLFW_SAMPLES, 4);
-	glEnable(GL_MULTISAMPLE);
+	//glfwWindowHint(GLFW_SAMPLES, 4);
+	//glEnable(GL_MULTISAMPLE);
 
 	mainPlayer.setCamera(&camera);
 
@@ -72,33 +70,24 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//区块初始化
 	initChunks();
 
-	Chunk chunkA(1, 0, 0);
-	//chunkA.initChunk();//加载区块数据
-
-	//vecIndex = chunkA.getVecs(modelVecs, vecIndex);
-
 	//保存
-
-	// 1. 用 cereal 序列化到内存
-	//std::ostringstream oss;
-	//cereal::BinaryOutputArchive oar(oss);
-	//oar(chunkA);
-	//std::string serialized = oss.str();
-
-	//// 2. 用 zlib 压缩
-	//std::string compressed = compress_string(serialized);
-
-	//// 3. 写入文件
-	//std::ofstream file("data.bin", std::ios::binary);
-	//file.write(compressed.data(), compressed.size());
+	//Chunk chunkA(1, 0, 0);
+	//chunkA.initChunk();//生成区块数据
+	//chunkA.saveChunk("data.bin");
 
 	//读取
+	//Chunk chunkB;
+	//chunkB.loadChunk("data.bin");
 
-	Chunk chunkB;
+	//vecIndex = chunkB.getVecs(modelVecs, vecIndex);
 
-	chunkB.loadChunk("data.bin");
+	Region region(0, 0);
 
-	vecIndex = chunkB.getVecs(modelVecs, vecIndex);
+	//region.chunks[0][0][0]->initChunk();
+
+	//region.saveRegion("region.bin");
+	region.loadRegion("region.bin");
+	vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 
 	//实例化
 

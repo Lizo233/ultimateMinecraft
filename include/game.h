@@ -1,6 +1,6 @@
 #include <main.h>
 #include <cereal/archives/binary.hpp>
-
+#include <cereal/types/memory.hpp>
 
 glm::vec3* modelVecs;
 
@@ -37,6 +37,7 @@ public:
 	bool mHasBlock{};//它有没有方块
 	bool mIsLoaded{};//是否被加载
 	bool mIsVisible{};//可不可见（有没有被玩家看见）
+	bool mIsGenerated{};//是否被生成
 
 	WorldPos mWorldPos;//位于世界的哪个位置（区块坐标轴）
 
@@ -47,6 +48,7 @@ public:
 	bool hasBlock() const { return mHasBlock; }
 	bool isLoaded() const { return mIsLoaded; }
 	bool isVisible() const { return mIsVisible; }
+	bool isGenerated() const { return mIsGenerated; }
 
 	WorldPos getWorldPos() const { return mWorldPos; }
 
@@ -83,6 +85,7 @@ public:
 		blocks[2][3][0] = 1;
 	}
 
+	//返回值为最后未修改的下标
 	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset) const {
 
 		if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
@@ -91,64 +94,112 @@ public:
 
 		unsigned int vecIndex = IndexOffset;//防止不同Chunk的矩阵之间互相覆盖
 
-		//世界偏移量，区块在世界的哪个位置
+		//世界偏移量，区块在世界的哪个位置（区块坐标轴）
 		glm::vec3 WorldOffset(mWorldPos.x * 16, mWorldPos.y * 16, mWorldPos.z * 16);
 
-		for (int i = 0; i < 16; i++) {
-			for (int j = 0; j < 16; j++) {
-				for (int k = 0; k < 16; k++) {
-					if (blocks[i][j][k] != 0) {
-						vecs[vecIndex++] = glm::vec3(i, j, k) + WorldOffset; 
-						//std::cout << "aaa\n";
+		int count = 0;
+		for (int x = 0; x < 16; ++x) {
+			for (int y = 0; y < 16; ++y) {
+				for (int z = 0; z < 16; ++z) {
+					if (blocks[x][y][z] == 0) continue;  // 跳过空气
+
+					count++;
+
+					// 检查6个方向，任意一个暴露即渲染
+					bool exposed =
+						(x == 0 || blocks[x - 1][y][z] == 0) ||  // 左
+						(x == 15 || blocks[x + 1][y][z] == 0) ||  // 右
+						(y == 0 || blocks[x][y - 1][z] == 0) ||  // 下
+						(y == 15 || blocks[x][y + 1][z] == 0) ||  // 上
+						(z == 0 || blocks[x][y][z - 1] == 0) ||  // 前
+						(z == 15 || blocks[x][y][z + 1] == 0);    // 后
+
+					if (exposed) {
+						vecs[vecIndex++] = glm::vec3(x, y, z) + WorldOffset;
 					}
-					//如果在[x][y][z]处存在方块，就渲染
 				}
 			}
 		}
+		//std::cout << "总判断量：" << count << '\n';
 
-		return vecIndex;//返回最后未修改的索引
+		//for (int i = 0; i < 16; i++) {
+		//	for (int j = 0; j < 16; j++) {
+		//		for (int k = 0; k < 16; k++) {
+		//			if (blocks[i][j][k] != 0) {
+		//				vecs[vecIndex++] = glm::vec3(i, j, k) + WorldOffset; 
+		//				//std::cout << "aaa\n";
+		//			}
+		//			//如果在[x][y][z]处存在方块，就渲染
+		//		}
+		//	}
+		//}
+
+		return vecIndex;//返回最后未修改的下标
 	}
 
 	//序列化函数模板
 	template<class Archive>
 	void serialize(Archive& ar) {
-		ar(mHasBlock, mIsLoaded, mIsVisible, mWorldPos, cereal::binary_data(blocks, sizeof(blocks)));
+		ar(mHasBlock, mIsLoaded, mIsVisible,mIsGenerated,
+			mWorldPos,
+			cereal::binary_data(blocks, sizeof(blocks)));
 		// blocks : (Qwen3-Max) 将三维数组展平为一维进行序列化（最简单方式）
 	}
 
-	void loadChunk(const std::string path) {
+	void saveChunk(const std::string& path) {
+		// 1. 用 cereal 序列化到内存
+		std::ostringstream oss;
+		cereal::BinaryOutputArchive oar(oss);
+		oar(*this);
+		std::string serialized = oss.str();
+
+		// 2. 用 zlib 压缩
+		std::string compressed = compress_string(serialized);
+
+		// 3. 写入文件
+		std::ofstream file(path, std::ios::binary);
+		file.write(compressed.data(), compressed.size());
+	}
+
+	void loadChunk(const std::string& path) {
 		// 1. 读取压缩文件
 		std::ifstream file(path, std::ios::binary);
 
-		std::string uncompressed{
+		std::string compressed{
 			(std::istreambuf_iterator<char>(file)),
 			std::istreambuf_iterator<char>()
 		};
 
 		// 2. 解压
-		std::string unserialized = decompress_string(uncompressed);
+		std::string serialized = decompress_string(compressed);
 
 		// 3. 从内存反序列化
-		std::istringstream iss(unserialized);
+		std::istringstream iss(serialized);
 		cereal::BinaryInputArchive iarchive(iss);
 		iarchive(*this);
 	}
 
 };
 
+constexpr int regionX = 32;
+constexpr int regionY = 16;
+constexpr int regionZ = 32;
+
 class Region {
 public:
+
+
 	//Region只使用WorldPos的 x,z 坐标，不使用 y 坐标
 	Region(long long x, long long z) {
 		mWorldPos.x = x;
 		mWorldPos.z = z;
-		
-		for (int i = 0; i < 32; i++) {
-			for (int j = 0; j < 16; j++) {
-				for (int k = 0; k < 32; k++) {
+
+		for (int i = 0; i < regionX; i++) {
+			for (int j = 0; j < regionY; j++) {
+				for (int k = 0; k < regionZ; k++) {
 					//Region大小为512x512所以其worldPos是512倍放大的，chunk大小为16x16x16所以其
 					//WorldPos大小是16倍放大的（都是相对于方块的WorldPos来说）
-					chunks[i][j][k] = new Chunk(i + x * 32, j, k + z * 32);
+					chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY);
 				}
 			}
 		}
@@ -156,8 +207,58 @@ public:
 
 	WorldPos mWorldPos;
 
-	Chunk *chunks[32][16][32];//512 x 512 x 512 = 134217728 格方块
+	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 256 x 512 = 67108864 格方块
 
+	//序列化函数模板
+	template<class Archive>
+	void serialize(Archive& ar) {
+		ar(mWorldPos);
+
+		for (int i = 0; i < regionX; i++) {
+			for (int j = 0; j < regionY; j++) {
+				for (int k = 0; k < regionZ; k++) {
+					//逐个序列化
+					ar(chunks[i][j][k]);
+				}
+			}
+		}
+
+	}
+
+	void saveRegion(const std::string& path) {
+		// 1. 用 cereal 序列化到内存
+		std::ostringstream oss;
+		cereal::BinaryOutputArchive oar(oss);
+		oar(*this);
+		std::string serialized = oss.str();
+
+		// 2. 用 zlib 压缩
+		std::string compressed = compress_string(serialized);
+		std::cout << "serialized的大小：" << serialized.size() << '\n';
+
+		// 3. 写入文件
+		std::ofstream file(path, std::ios::binary);
+		file.write(compressed.data(), compressed.size());
+	}
+
+	void loadRegion(const std::string& path) {
+		// 1. 读取压缩文件
+		std::ifstream file(path, std::ios::binary);
+
+		std::string compressed{
+			(std::istreambuf_iterator<char>(file)),
+			std::istreambuf_iterator<char>()
+		};
+
+		// 2. 解压
+		std::string serialized = decompress_string(compressed);
+		std::cout << "serialized的大小：" << serialized.size() << '\n';
+
+		// 3. 从内存反序列化
+		std::istringstream iss(serialized);
+		cereal::BinaryInputArchive iarchive(iss);
+		iarchive(*this);
+	}
 
 };
 
