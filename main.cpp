@@ -52,7 +52,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	cubeShader->setUniInt("texture0", 0);
 
 	//世界位置矩阵（模型矩阵）初始化
-	unsigned int amount = 100;
+	unsigned int amount = 1500000;
 	modelVecs = new glm::vec3[amount];
 
 	//static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
@@ -83,11 +83,20 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	Region region(0, 0);
 
-	//region.chunks[0][0][0]->initChunk();
+	for (int x = 0; x < 32; x++) {
+		for (int y = 0; y < 32; y++) {
+			for (int z = 0; z < 32; z++) {
+				region.chunks[x][y][z]->initChunk();
+			}
+		}
+	}
 
 	//region.saveRegion("region.bin");
-	region.loadRegion("region.bin");
-	vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
+	//region.loadRegion("region.bin");
+	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
+	//vecIndex = region.chunks[1][2][3]->getVecs(modelVecs, vecIndex);
+	vecIndex = region.getVecs(modelVecs, vecIndex, amount);
+
 
 	//实例化
 
@@ -126,6 +135,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	glGenBuffers(1, &instanceBuffer);
 	glBindVertexArray(vaoMap["cube"]);//绑定vao（其实在设置vao属性之前执行绑定vao也行，但为了防止你迷惑）
 	glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);//把instanceBuffer绑定到openGL的vbo槽位上
+	//在显存上开辟大小为amount  * sizeof(glm::vec3)大小的数组
 	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::vec3), modelVecs, GL_STATIC_DRAW);
 
 	// set transformation matrices as an instance vertex attribute (with divisor 1)

@@ -86,7 +86,7 @@ public:
 	}
 
 	//返回值为最后未修改的下标
-	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset) const {
+	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset,unsigned int maxCount) const {
 
 		if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
 		if (mIsLoaded == 0) return IndexOffset;//没加载也不渲染（没加载就应该不会调用这个函数？）
@@ -114,7 +114,8 @@ public:
 						(z == 0 || blocks[x][y][z - 1] == 0) ||  // 前
 						(z == 15 || blocks[x][y][z + 1] == 0);    // 后
 
-					if (exposed) {
+					//如果IndexOffset的过大就直接返回它
+					if (exposed && (IndexOffset + vecIndex) < maxCount) {
 						vecs[vecIndex++] = glm::vec3(x, y, z) + WorldOffset;
 					}
 				}
@@ -179,10 +180,16 @@ public:
 		iarchive(*this);
 	}
 
+	void generate(long long seed) {
+		//柏林算法生成
+
+
+
+	}
 };
 
 constexpr int regionX = 32;
-constexpr int regionY = 16;
+constexpr int regionY = 32;
 constexpr int regionZ = 32;
 
 class Region {
@@ -207,7 +214,7 @@ public:
 
 	WorldPos mWorldPos;
 
-	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 256 x 512 = 67108864 格方块
+	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 256 x 512 = 16777216 格方块
 
 	//序列化函数模板
 	template<class Archive>
@@ -260,6 +267,18 @@ public:
 		iarchive(*this);
 	}
 
+	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset,unsigned int maxCount) const {
+
+		for (int i = 0; i < regionX; i++) {
+			for (int j = 0; j < regionY; j++) {
+				for (int k = 0; k < regionZ; k++) {
+					//逐个getVecs
+					IndexOffset = chunks[i][j][k]->getVecs(vecs, IndexOffset, maxCount);
+				}
+			}
+		}
+		return IndexOffset;
+	}
 };
 
 Region* regions[4];

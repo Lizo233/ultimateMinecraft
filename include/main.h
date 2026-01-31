@@ -159,6 +159,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 //为了运行，只能出此下策，注意main.cpp必须包含camera.h！
 //挨算了，既然他能用就不要动了吧（滑稽）
 extern void mouse_callback(GLFWwindow* window, double xposIn, double yposIn);
+extern void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
 //OpenGL初始化
 GLFWwindow* OGLInitial() {
 	
@@ -181,6 +182,7 @@ GLFWwindow* OGLInitial() {
 	glfwSetFramebufferSizeCallback(mWindow, framebuffer_size_callback);
 	glfwSetCursorPosCallback(mWindow, mouse_callback);
 	glfwSetScrollCallback(mWindow, scroll_callback);
+	glfwSetKeyCallback(mWindow, key_callback);
 
 	//设置帧率为显示器刷新率
 	glfwSwapInterval(1);

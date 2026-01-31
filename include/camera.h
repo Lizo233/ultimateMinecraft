@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <main.h>
 #include <player.h>
 
@@ -15,7 +15,7 @@ enum class Camera_Movement {
 class Camera {
 private:
 	//常量声明
-	static constexpr double DEFAULT_YAW = -90.0;
+	static constexpr double DEFAULT_YAW = 0.0;
 	static constexpr double DEFAULT_PITCH = 0.0;
 	static constexpr double DEFAULT_SPEED = 2.5;
 	static constexpr double DEFAULT_SENSITIVITY = 0.1;
@@ -34,6 +34,9 @@ public:
 	double mouseSensitivity;
 	double zoom;
 
+	//速度系数
+	double speedMul = 1.0;
+
 	//获取观察矩阵
 	glm::mat4 getViewMatrix() const
 	{
@@ -42,10 +45,9 @@ public:
 
 	//处理键盘输入
 	// processes input received from any keyboard-like input system. Accepts input parameter in the form of camera defined ENUM (to abstract it from windowing systems)
-	void ProcessKeyboard(Camera_Movement direction, double deltaTime)
-	{
-		movementSpeed = 2.5*4;
-		float velocity = movementSpeed * deltaTime;
+	void ProcessKeyboard(Camera_Movement direction, double deltaTime) {
+
+		float velocity = movementSpeed * speedMul * deltaTime;
 		if (direction == Camera_Movement::FORWARD)
 			mPlayer.playerPos += mPlayer.Front * velocity;
 		if (direction == Camera_Movement::BACKWARD)
@@ -68,7 +70,7 @@ public:
 		mPlayer.mYaw = yaw;
 		mPlayer.mPitch = pitch;
 
-		mPlayer.Front = glm::vec3(0.0f, 0.0f, -1.0);
+		mPlayer.Front = glm::vec3(0.0, 0.0, -1.0);
 
 		WorldUp = up;
 		mPlayer.setCamera(this);
@@ -123,9 +125,10 @@ private:
 	}
 };
 
-Camera camera(mainPlayer,glm::vec3(0.0, 1.5, 3.0));
+Camera camera(mainPlayer,glm::vec3(0.0, 20.0, 0.0));
 extern double deltaTime;
 void processInput(GLFWwindow* window) {
+
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);//Q键关闭窗口
 
@@ -172,3 +175,13 @@ void mouse_callback(GLFWwindow* window, double xposIn, double yposIn)
 	camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+
+	//更改移动速度
+	if (action==GLFW_PRESS) {
+	if (key == GLFW_KEY_EQUAL)
+		camera.speedMul *= 2;
+	if (key == GLFW_KEY_MINUS)
+		camera.speedMul /= 2;
+	}
+}
