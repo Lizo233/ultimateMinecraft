@@ -23,7 +23,7 @@ private:
 public:
 
 	//这个镜头绑定的玩家
-	Player mPlayer;
+	Player& const mPlayer;//引用只能被初始化一次所以设置为常量
 
 	//镜头的属性
 	glm::vec3 Position;
@@ -63,12 +63,13 @@ public:
 	}
 
 	//用向量初始化镜头
-	Camera(Player& player,glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = DEFAULT_YAW, float pitch = DEFAULT_PITCH) : movementSpeed(DEFAULT_SPEED), mouseSensitivity(DEFAULT_SENSITIVITY), zoom(DEFAULT_ZOOM)
+	Camera(Player& player,glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = DEFAULT_YAW, float pitch = DEFAULT_PITCH) : mPlayer(player), movementSpeed(DEFAULT_SPEED), mouseSensitivity(DEFAULT_SENSITIVITY), zoom(DEFAULT_ZOOM)
 	{
-		mPlayer = player;
 		mPlayer.playerPos = position;
 		mPlayer.mYaw = yaw;
 		mPlayer.mPitch = pitch;
+
+		std::cout << mPlayer.playerPos.y << ' ' << player.playerPos.y << '\n';
 
 		mPlayer.Front = glm::vec3(0.0, 0.0, -1.0);
 
@@ -125,9 +126,18 @@ private:
 	}
 };
 
+//声明默认的camera对象
 Camera camera(mainPlayer,glm::vec3(0.0, 20.0, 0.0));
+
+
 extern double deltaTime;
 void processInput(GLFWwindow* window) {
+
+	static bool firstTime = true;
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && firstTime) {
+		mainPlayer.playerPos = glm::vec3(0, 0, 0);
+		mainPlayer.Front = glm::vec3(0, 0, 1);
+	}
 
 	if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);//Q键关闭窗口

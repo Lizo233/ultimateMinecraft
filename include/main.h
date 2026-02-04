@@ -168,6 +168,9 @@ GLFWwindow* OGLInitial() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);//OpenGL版本设置为 4.6
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	//将深度缓冲设置为32位的
+	//glfwWindowHint(GLFW_DEPTH_BITS, 32);
 #ifdef __APPLE__
 	glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif

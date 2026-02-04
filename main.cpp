@@ -5,8 +5,27 @@
 #include <texture.h>//材质加载
 #include <game.h>//游戏功能
 
+class A {
+public:
+	std::string data="default a";
+};
+
+class B {
+public:
+	A& myA;
+
+	B(A& thisA) :myA(thisA) {
+		myA.data = "ok";
+	}
+
+};
+
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
+	A a;
+	B b(a);
+
+	//std::cout << "a data: " << a.data << "\nb.myA.data: " << b.myA.data << '\n';
 
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
 
