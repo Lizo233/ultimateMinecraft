@@ -35,7 +35,7 @@ public:
 	double zoom;
 
 	//速度系数
-	double speedMul = 1.0;
+	double speedMul = 8.0;
 
 	//获取观察矩阵
 	glm::mat4 getViewMatrix() const
@@ -69,7 +69,7 @@ public:
 		mPlayer.mYaw = yaw;
 		mPlayer.mPitch = pitch;
 
-		std::cout << mPlayer.playerPos.y << ' ' << player.playerPos.y << '\n';
+		//std::cout << mPlayer.playerPos.y << ' ' << player.playerPos.y << '\n';
 
 		mPlayer.Front = glm::vec3(0.0, 0.0, -1.0);
 

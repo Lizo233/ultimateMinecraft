@@ -1,8 +1,17 @@
+#pragma once
 #include <main.h>
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/memory.hpp>
 
 glm::vec3* modelVecs;
+
+class Region;
+
+constexpr int regionX = 32;
+constexpr int regionY = 32;
+constexpr int regionZ = 32;
+
+std::map<int, std::map<int, Region*>> regionMap;
 
 struct WorldPos {
 	long long x;
@@ -25,7 +34,7 @@ class Chunk {
 public:
 	Chunk() = default;
 
-	Chunk(long long x, long long y,long long z) {
+	Chunk(long long x, long long y,long long z,Region* parentRegion) {
 		mWorldPos.x = x;
 		mWorldPos.y = y;
 		mWorldPos.z = z;
@@ -41,7 +50,7 @@ public:
 
 	WorldPos mWorldPos;//位于世界的哪个位置（区块坐标轴）
 
-	uint8_t blocks[16][16][16]{};//对应[x][y][z]位置的方块ID
+	uint8_t blocks[16][16][16]{};//对应[x][y][z]位置的方块ID，默认初始化为0
 
 public:
 	
@@ -68,6 +77,8 @@ public:
 		mIsLoaded = true;
 		mHasBlock = true;//先使得区块可见
 
+		//blocks[0][0][0] = 1;
+
 		blocks[1][1][1] = 1;
 		blocks[3][1][1] = 1;
 		blocks[2][2][1] = 1;
@@ -85,58 +96,8 @@ public:
 		blocks[2][3][0] = 1;
 	}
 
-	//返回值为最后未修改的下标
-	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset,unsigned int maxCount) const {
-
-		if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
-		if (mIsLoaded == 0) return IndexOffset;//没加载也不渲染（没加载就应该不会调用这个函数？）
-		if (mHasBlock == 0) return IndexOffset;//区块里没有方块也不渲染
-
-		unsigned int vecIndex = IndexOffset;//防止不同Chunk的矩阵之间互相覆盖
-
-		//世界偏移量，区块在世界的哪个位置（区块坐标轴）
-		glm::vec3 WorldOffset(mWorldPos.x * 16, mWorldPos.y * 16, mWorldPos.z * 16);
-
-		int count = 0;
-		for (int x = 0; x < 16; ++x) {
-			for (int y = 0; y < 16; ++y) {
-				for (int z = 0; z < 16; ++z) {
-					if (blocks[x][y][z] == 0) continue;  // 跳过空气
-
-					count++;
-
-					// 检查6个方向，任意一个暴露即渲染
-					bool exposed =
-						(x == 0 || blocks[x - 1][y][z] == 0) ||  // 左
-						(x == 15 || blocks[x + 1][y][z] == 0) ||  // 右
-						(y == 0 || blocks[x][y - 1][z] == 0) ||  // 下
-						(y == 15 || blocks[x][y + 1][z] == 0) ||  // 上
-						(z == 0 || blocks[x][y][z - 1] == 0) ||  // 前
-						(z == 15 || blocks[x][y][z + 1] == 0);    // 后
-
-					//如果IndexOffset的过大就直接返回它
-					if (exposed && (IndexOffset + vecIndex) < maxCount) {
-						vecs[vecIndex++] = glm::vec3(x, y, z) + WorldOffset;
-					}
-				}
-			}
-		}
-		//std::cout << "总判断量：" << count << '\n';
-
-		//for (int i = 0; i < 16; i++) {
-		//	for (int j = 0; j < 16; j++) {
-		//		for (int k = 0; k < 16; k++) {
-		//			if (blocks[i][j][k] != 0) {
-		//				vecs[vecIndex++] = glm::vec3(i, j, k) + WorldOffset; 
-		//				//std::cout << "aaa\n";
-		//			}
-		//			//如果在[x][y][z]处存在方块，就渲染
-		//		}
-		//	}
-		//}
-
-		return vecIndex;//返回最后未修改的下标
-	}
+	//返回值为最后未修改的下标（vec3数组，数组偏移，最大大小）
+	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned int maxCount) const;
 
 	//序列化函数模板
 	template<class Archive>
@@ -188,10 +149,6 @@ public:
 	}
 };
 
-constexpr int regionX = 32;
-constexpr int regionY = 32;
-constexpr int regionZ = 32;
-
 class Region {
 public:
 
@@ -201,12 +158,14 @@ public:
 		mWorldPos.x = x;
 		mWorldPos.z = z;
 
+		regionMap[x][z] = this;
+
 		for (int i = 0; i < regionX; i++) {
 			for (int j = 0; j < regionY; j++) {
 				for (int k = 0; k < regionZ; k++) {
 					//Region大小为512x512所以其worldPos是512倍放大的，chunk大小为16x16x16所以其
 					//WorldPos大小是16倍放大的（都是相对于方块的WorldPos来说）
-					chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY);
+					chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY, this);
 				}
 			}
 		}
@@ -265,6 +224,15 @@ public:
 		std::istringstream iss(serialized);
 		cereal::BinaryInputArchive iarchive(iss);
 		iarchive(*this);
+
+		//将自己加入世界的regionMap
+		regionMap[mWorldPos.x][mWorldPos.z] = this;
+	}
+
+	void unload() {
+
+		//将自己从worldMap中移除
+		regionMap[mWorldPos.x][mWorldPos.z] = nullptr;
 	}
 
 	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset,unsigned int maxCount) const {
@@ -281,7 +249,7 @@ public:
 	}
 };
 
-Region* regions[4];
+Region* regions[9];
 
 
 void initChunks() {
@@ -312,4 +280,90 @@ void renderChunks(int maxRenderAmount) {
 	
 	//neightbor update来确定？
 	//以玩家为中心↑↓←→寻路来确定？？？
+}
+
+unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned int maxCount) const {
+
+	if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
+	if (mIsLoaded == 0) return IndexOffset;//没加载也不渲染（没加载就应该不会调用这个函数？）
+	if (mHasBlock == 0) return IndexOffset;//区块里没有方块也不渲染
+
+	unsigned int vecIndex = IndexOffset;//防止不同Chunk的矩阵之间互相覆盖
+
+	//世界偏移量，区块在世界的哪个位置（区块坐标轴）
+	glm::vec3 WorldOffset(mWorldPos.x * 16, mWorldPos.y * 16, mWorldPos.z * 16);
+
+
+	for (int x = 0; x < 16; ++x) {
+		for (int y = 0; y < 16; ++y) {
+			for (int z = 0; z < 16; ++z) {
+				if (blocks[x][y][z] == 0) continue;  // 跳过空气
+
+				bool exposed = false;
+
+				//检查6个方向，任意一个暴露即渲染
+				if (x == 0 || x == 15 ||
+					y == 0 || y == 15 ||
+					z == 0 || z == 15) {
+					//检测的方块位于区块边界
+
+					//如果位于region边缘，或邻居区块是空的就暴露
+
+					//是否处在region边缘
+					if (mWorldPos.x % regionX == 0 || mWorldPos.y % regionY == 0 || mWorldPos.z % regionZ == 0 ||
+						mWorldPos.x % regionX == 31 || mWorldPos.y % regionY == 31 || mWorldPos.z % regionZ == 31)
+					{
+						exposed = true;
+					}
+					else {
+						//exposed = 1;
+						//邻居区块检测
+						//检测该方块与邻居区块接触的方块是否为空气
+
+						//获取自身所在region的指针
+						Region* myRegion = regionMap
+							[std::floor((double)mWorldPos.x / regionX)] // 区块坐标轴向下取整
+							[std::floor((double)mWorldPos.z / regionZ)];
+
+						if (myRegion == nullptr) {
+							std::cout << "[ERROR] myRegion指针为nullptr，从regionMap中获取的指针不可用" << '\n';
+							logError("myRegion指针为nullptr，从regionMap中获取的指针不可用");
+							std::terminate();//终止程序
+						}
+
+
+						//卧槽我tm的面对的原来是正x轴？
+						if (z == 0) {
+							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y][mWorldPos.z % regionZ - 1]->blocks[x][y][15] == 0;
+						}
+
+					}
+				}
+				else {
+					//检测方块在区块内部
+
+					exposed =
+						(blocks[x - 1][y][z] == 0) ||  // 左
+						(blocks[x + 1][y][z] == 0) ||  // 右
+						(blocks[x][y - 1][z] == 0) ||  // 下
+						(blocks[x][y + 1][z] == 0) ||  // 上
+						(blocks[x][y][z - 1] == 0) ||  // 前
+						(blocks[x][y][z + 1] == 0);    // 后
+				}
+				if (exposed == false)
+					continue;//没暴露就直接下一个循环不做判断
+
+				//如果 vecIndex 过大就直接返回它
+				if (vecIndex < maxCount) {
+					vecs[vecIndex++] = glm::vec3(x, y, z) + WorldOffset;
+				}
+				else {
+					return vecIndex;//此时vecIndex应等于maxCount
+				}
+			}
+		}
+	}
+	//std::cout << "总判断量：" << count << '\n';
+
+	return vecIndex;//返回最后未修改的下标
 }

@@ -5,27 +5,8 @@
 #include <texture.h>//材质加载
 #include <game.h>//游戏功能
 
-class A {
-public:
-	std::string data="default a";
-};
-
-class B {
-public:
-	A& myA;
-
-	B(A& thisA) :myA(thisA) {
-		myA.data = "ok";
-	}
-
-};
 
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
-
-	A a;
-	B b(a);
-
-	//std::cout << "a data: " << a.data << "\nb.myA.data: " << b.myA.data << '\n';
 
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
 
@@ -100,12 +81,12 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	//vecIndex = chunkB.getVecs(modelVecs, vecIndex);
 
-	Region region(0, 0);
+	regions[0] = new Region(0, 0);
 
 	for (int x = 0; x < 32; x++) {
 		for (int y = 0; y < 32; y++) {
 			for (int z = 0; z < 32; z++) {
-				region.chunks[x][y][z]->initChunk();
+				regions[0]->chunks[x][y][z]->initChunk();
 			}
 		}
 	}
@@ -114,7 +95,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//region.loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 	//vecIndex = region.chunks[1][2][3]->getVecs(modelVecs, vecIndex);
-	vecIndex = region.getVecs(modelVecs, vecIndex, amount);
+	vecIndex = regions[0]->getVecs(modelVecs, vecIndex, amount);
 
 
 	//实例化

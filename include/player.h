@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 #include <main.h>
 
 extern class Camera;
