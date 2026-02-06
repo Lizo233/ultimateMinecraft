@@ -77,7 +77,8 @@ public:
 		mIsLoaded = true;
 		mHasBlock = true;//先使得区块可见
 
-		//blocks[0][0][0] = 1;
+		blocks[0][0][0] = 1;
+		blocks[15][15][15] = 1;
 
 		blocks[1][1][1] = 1;
 		blocks[3][1][1] = 1;
@@ -332,9 +333,24 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 						}
 
 
-						//卧槽我tm的面对的原来是正x轴？
-						if (z == 0) {
+						//卧槽我tm面对的原来是正x轴？
+						if (x == 0) {
+							exposed = myRegion->chunks[mWorldPos.x % regionX - 1][mWorldPos.y][mWorldPos.z % regionZ]->blocks[15][y][z] == 0;
+						}
+						else if (y == 0) {
+							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y - 1][mWorldPos.z % regionZ]->blocks[x][15][z] == 0;
+						}
+						else if (z == 0) {
 							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y][mWorldPos.z % regionZ - 1]->blocks[x][y][15] == 0;
+						}
+						else if (x == 15) {
+							exposed = myRegion->chunks[mWorldPos.x % regionX + 1][mWorldPos.y][mWorldPos.z % regionZ]->blocks[0][y][z] == 0;
+						}
+						else if (y == 15) {
+							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y + 1][mWorldPos.z % regionZ]->blocks[x][0][z] == 0;
+						}
+						else if (z == 15) {
+							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y][mWorldPos.z % regionZ + 1]->blocks[x][y][0] == 0;
 						}
 
 					}
