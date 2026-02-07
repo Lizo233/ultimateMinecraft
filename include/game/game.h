@@ -1,5 +1,7 @@
 #pragma once
 #include <main.h>
+#include <game/perlin_noise.h>
+
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/memory.hpp>
 
@@ -34,7 +36,7 @@ class Chunk {
 public:
 	Chunk() = default;
 
-	Chunk(long long x, long long y,long long z,Region* parentRegion) {
+	Chunk(long long x, long long y,long long z) {
 		mWorldPos.x = x;
 		mWorldPos.y = y;
 		mWorldPos.z = z;
@@ -76,9 +78,6 @@ public:
 		mIsVisible = true;
 		mIsLoaded = true;
 		mHasBlock = true;//先使得区块可见
-
-		blocks[0][0][0] = 1;
-		blocks[15][15][15] = 1;
 
 		blocks[1][1][1] = 1;
 		blocks[3][1][1] = 1;
@@ -142,10 +141,39 @@ public:
 		iarchive(*this);
 	}
 
-	void generate(long long seed) {
+	void generate(const LayeredNoise& noise) {
 		//柏林算法生成
+		
+		mIsVisible = true;
+		mIsLoaded = true;
+		mHasBlock = true;//先使得区块可见
 
+		//尝试优化
 
+		double noise_cache[16][16];
+		for (int x = 0; x < 16; ++x) {
+			for (int z = 0; z < 16; ++z) {
+				noise_cache[x][z] = noise.mountainNoise(
+					x + mWorldPos.x * 16,
+					z + mWorldPos.z * 16
+				);
+			}
+		}
+
+		for (int x = 0; x < 16; ++x) {
+			for (int y = 0; y < 16; ++y) {
+				for (int z = 0; z < 16; ++z) {
+
+					//获取该点的柏林噪声值
+					//double value = noise.mountainNoise(x + mWorldPos.x * 16, z + mWorldPos.z * 16);
+
+					if (y + mWorldPos.y * 16 < noise_cache[x][z] * 512) {
+						blocks[x][y][z] = 1;
+					}
+
+				}
+			}
+		}
 
 	}
 };
@@ -166,7 +194,7 @@ public:
 				for (int k = 0; k < regionZ; k++) {
 					//Region大小为512x512所以其worldPos是512倍放大的，chunk大小为16x16x16所以其
 					//WorldPos大小是16倍放大的（都是相对于方块的WorldPos来说）
-					chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY, this);
+					chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY);
 				}
 			}
 		}
@@ -174,7 +202,7 @@ public:
 
 	WorldPos mWorldPos;
 
-	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 256 x 512 = 16777216 格方块
+	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 512 x 512 = 134217728 格方块
 
 	//序列化函数模板
 	template<class Archive>
@@ -219,7 +247,8 @@ public:
 
 		// 2. 解压
 		std::string serialized = decompress_string(compressed);
-		std::cout << "serialized的大小：" << serialized.size() << '\n';
+		std::cout << "已压缩区块文件大小：" << compressed.size() << '\n';
+		std::cout << "未压缩区块数据大小：" << serialized.size() << '\n';
 
 		// 3. 从内存反序列化
 		std::istringstream iss(serialized);
@@ -311,13 +340,21 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 					//如果位于region边缘，或邻居区块是空的就暴露
 
 					//是否处在region边缘
-					if (mWorldPos.x % regionX == 0 || mWorldPos.y % regionY == 0 || mWorldPos.z % regionZ == 0 ||
-						mWorldPos.x % regionX == 31 || mWorldPos.y % regionY == 31 || mWorldPos.z % regionZ == 31)
+					if (mWorldPos.x % regionX == 0 && x == 0 ||
+						mWorldPos.y % regionY == 0 && y == 0 ||
+						mWorldPos.z % regionZ == 0 && z == 0 ||
+						mWorldPos.x % regionX == 31 && x == 15 ||
+						mWorldPos.y % regionY == 31 && y == 15 ||
+						mWorldPos.z % regionZ == 31 && z == 15 ||
+						//负数区
+						mWorldPos.x % regionX == -1 && x == 15 ||
+						mWorldPos.z % regionZ == -1 && z == 15
+						)
 					{
 						exposed = true;
 					}
 					else {
-						//exposed = 1;
+
 						//邻居区块检测
 						//检测该方块与邻居区块接触的方块是否为空气
 
@@ -333,24 +370,46 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 						}
 
 
+						//保证其不为负数
+						int selfX = mWorldPos.x % regionX;
+						if (selfX < 0) selfX += regionX;
+
+						int selfZ = mWorldPos.z % regionZ;
+						if (selfZ < 0) selfZ += regionZ;
+
 						//卧槽我tm面对的原来是正x轴？
-						if (x == 0) {
-							exposed = myRegion->chunks[mWorldPos.x % regionX - 1][mWorldPos.y][mWorldPos.z % regionZ]->blocks[15][y][z] == 0;
+						if (exposed == false && x == 0) {
+							exposed = myRegion->chunks[selfX - 1][mWorldPos.y][selfZ]->blocks[15][y][z] == 0;
 						}
-						else if (y == 0) {
-							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y - 1][mWorldPos.z % regionZ]->blocks[x][15][z] == 0;
+						if (exposed == false && y == 0) {
+							exposed = myRegion->chunks[selfX][mWorldPos.y - 1][selfZ]->blocks[x][15][z] == 0;
 						}
-						else if (z == 0) {
-							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y][mWorldPos.z % regionZ - 1]->blocks[x][y][15] == 0;
+						if (exposed == false && z == 0) {
+							exposed = myRegion->chunks[selfX][mWorldPos.y][selfZ - 1]->blocks[x][y][15] == 0;
 						}
-						else if (x == 15) {
-							exposed = myRegion->chunks[mWorldPos.x % regionX + 1][mWorldPos.y][mWorldPos.z % regionZ]->blocks[0][y][z] == 0;
+						if (exposed == false && x == 15) {
+							exposed = myRegion->chunks[selfX + 1][mWorldPos.y][selfZ]->blocks[0][y][z] == 0;
 						}
-						else if (y == 15) {
-							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y + 1][mWorldPos.z % regionZ]->blocks[x][0][z] == 0;
+						if (exposed == false && y == 15) {
+							exposed = myRegion->chunks[selfX][mWorldPos.y + 1][selfZ]->blocks[x][0][z] == 0;
 						}
-						else if (z == 15) {
-							exposed = myRegion->chunks[mWorldPos.x % regionX][mWorldPos.y][mWorldPos.z % regionZ + 1]->blocks[x][y][0] == 0;
+						if (exposed == false && z == 15) {
+							exposed = myRegion->chunks[selfX][mWorldPos.y][selfZ + 1]->blocks[x][y][0] == 0;
+						}
+						//TMD这段代码看的我要瞎了，有没有更好的判断方法？
+
+
+
+						//不暴露于区块外方块的，进行区块内判定
+						if (exposed == false) {
+							exposed =
+								(x != 0 && blocks[x - 1][y][z] == 0) ||  // 左
+								(x != 15 && blocks[x + 1][y][z] == 0) ||  // 右
+								(y != 0 && blocks[x][y - 1][z] == 0) ||  // 下
+								(y != 15 && blocks[x][y + 1][z] == 0) ||  // 上
+								(z != 0 && blocks[x][y][z - 1] == 0) ||  // 前
+								(z != 15 && blocks[x][y][z + 1] == 0);    // 后
+
 						}
 
 					}
@@ -366,6 +425,8 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 						(blocks[x][y][z - 1] == 0) ||  // 前
 						(blocks[x][y][z + 1] == 0);    // 后
 				}
+				
+				//exposed = true;//设为一直暴露
 				if (exposed == false)
 					continue;//没暴露就直接下一个循环不做判断
 

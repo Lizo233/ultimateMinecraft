@@ -3,7 +3,7 @@
 #include <shader.h>//着色器
 #include <player.h>//玩家
 #include <texture.h>//材质加载
-#include <game.h>//游戏功能
+#include <game/game.h>//游戏功能
 
 
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
@@ -52,7 +52,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	cubeShader->setUniInt("texture0", 0);
 
 	//世界位置矩阵（模型矩阵）初始化
-	unsigned int amount = 1500000;
+	unsigned int amount = 5000000;
 	modelVecs = new glm::vec3[amount];
 
 	//static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
@@ -70,64 +70,43 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//区块初始化
 	initChunks();
 
-	//保存
-	//Chunk chunkA(1, 0, 0);
-	//chunkA.initChunk();//生成区块数据
-	//chunkA.saveChunk("data.bin");
-
-	//读取
-	//Chunk chunkB;
-	//chunkB.loadChunk("data.bin");
-
-	//vecIndex = chunkB.getVecs(modelVecs, vecIndex);
-
+	//创建一个新的region
 	regions[0] = new Region(0, 0);
+	regions[1] = new Region(-1, 0);
+	regions[2] = new Region(-1, -1);
+	regions[3] = new Region(0, -1);
 
-	for (int x = 0; x < 32; x++) {
-		for (int y = 0; y < 32; y++) {
-			for (int z = 0; z < 32; z++) {
-				regions[0]->chunks[x][y][z]->initChunk();
-			}
-		}
-	}
+	LayeredNoise terraNoise(12345);
 
-	//region.saveRegion("region.bin");
-	//region.loadRegion("region.bin");
+	// 使用一维索引进行并行化
+	std::vector<int> indices(32 * 32 * 32);
+	std::iota(indices.begin(), indices.end(), 0);
+
+	std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
+		[&](int idx) {
+			int x = idx / (32 * 32);
+			int y = (idx % (32 * 32)) / 32;
+			int z = idx % 32;
+			regions[0]->chunks[x][y][z]->generate(terraNoise);
+			regions[1]->chunks[x][y][z]->generate(terraNoise);
+			regions[2]->chunks[x][y][z]->generate(terraNoise);
+			regions[3]->chunks[x][y][z]->generate(terraNoise);
+		});
+
+	//regions[0]->saveRegion("region.bin");
+	//regions[0]->loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 	//vecIndex = region.chunks[1][2][3]->getVecs(modelVecs, vecIndex);
 	vecIndex = regions[0]->getVecs(modelVecs, vecIndex, amount);
-
+	std::cout << vecIndex << '\n';
+	vecIndex = regions[1]->getVecs(modelVecs, vecIndex, amount);
+	std::cout << vecIndex << '\n';
+	vecIndex = regions[2]->getVecs(modelVecs, vecIndex, amount);
+	std::cout << vecIndex << '\n';
+	vecIndex = regions[3]->getVecs(modelVecs, vecIndex, amount);
+	std::cout << vecIndex << '\n';
 
 	//实例化
-
-	srand(static_cast<unsigned int>(glfwGetTime()*10000));//初始化随机数种子，*10000是为了增大随机性，此时glfwGetTime∈(0,1)
-	float radius = 15.0f;
-	float offset = 2.50f;
-	/*for (unsigned int i = 0; i < amount; i++)
-	{
-		glm::mat4 model = glm::mat4(1.0f);
-		// 1. translation: displace along circle with 'radius' in range [-offset, offset]
-		float angle = (float)i / (float)amount * 360.0f;
-		float displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-		float x = sin(angle) * radius + displacement;
-		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-		float y = displacement * 0.4f; // keep height of asteroid field smaller compared to width of x and z
-		displacement = (rand() % (int)(2 * offset * 100)) / 100.0f - offset;
-		float z = cos(angle) * radius + displacement;
-		model = glm::translate(model, glm::vec3(x, y, z));
-
-		// 2. scale: Scale between 0.05 and 0.25f
-		float scale = static_cast<float>(((rand() % 20) / 100.0 + 0.05)*3);
-		model = glm::scale(model, glm::vec3(scale));
-
-		// 3. rotation: add random rotation around a (semi)randomly picked rotation axis vector
-		float rotAngle = static_cast<float>((rand() % 360));
-		model = glm::rotate(model, rotAngle, glm::vec3(0.4f, 0.6f, 0.8f));
-
-		// 4. now add to list of matrices
-		modelMatrices[i] = model;
-	}*/
-
 	
 	// configure instanced array
 	// -------------------------
@@ -174,6 +153,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		//处理用户的输入
 		processInput(window);
 		
+		//显示玩家朝向
+		//std::cout << camera.mPlayer.Front.x << ' ' << camera.mPlayer.Front.y << ' ' << camera.mPlayer.Front.z << ' ' << '\n';
 
 		//默认处理窗口消息的函数
 		glfwSwapBuffers(window);

@@ -35,7 +35,7 @@ public:
 	double zoom;
 
 	//速度系数
-	double speedMul = 8.0;
+	double speedMul = 32.0;
 
 	//获取观察矩阵
 	glm::mat4 getViewMatrix() const
@@ -71,7 +71,7 @@ public:
 
 		//std::cout << mPlayer.playerPos.y << ' ' << player.playerPos.y << '\n';
 
-		mPlayer.Front = glm::vec3(0.0, 0.0, -1.0);
+		mPlayer.Front = glm::vec3(1.0, 0.0, 0.0);
 
 		WorldUp = up;
 		mPlayer.setCamera(this);
@@ -127,7 +127,7 @@ private:
 };
 
 //声明默认的camera对象
-Camera camera(mainPlayer,glm::vec3(0.0, 20.0, 0.0));
+Camera camera(mainPlayer,glm::vec3(0.0, 270.0, 0.0));
 
 
 extern double deltaTime;

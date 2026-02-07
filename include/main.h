@@ -12,6 +12,7 @@
 #include <mutex>
 #include <sstream>
 #include <iterator>
+#include <execution>//C++17并行库
 
 //第三方库
 #include <glad/glad.h>
