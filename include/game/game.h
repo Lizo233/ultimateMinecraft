@@ -7,14 +7,22 @@
 
 glm::vec3* modelVecs;
 
+//预声明Region类给Chunk类用
 class Region;
 
+
+//一个区域中含有多少格区块
 constexpr int regionX = 32;
 constexpr int regionY = 32;
 constexpr int regionZ = 32;
 
+
+
 std::map<int, std::map<int, Region*>> regionMap;
 
+
+
+//世界位置类
 struct WorldPos {
 	long long x;
 	long long y;
@@ -24,6 +32,9 @@ struct WorldPos {
 	void serialize(Archive& ar) { ar(x, y, z); }
 };
 
+
+
+//区块类
 class Chunk {
 	/*//这应该够多了吧，加mod什么的话应该也可以...吧？
 	//不行，感觉还是要调色板才行
@@ -37,9 +48,9 @@ public:
 	Chunk() = default;
 
 	Chunk(long long x, long long y,long long z) {
-		mWorldPos.x = x;
-		mWorldPos.y = y;
-		mWorldPos.z = z;
+		worldPos.x = x;
+		worldPos.y = y;
+		worldPos.z = z;
 	}
 
 //变量区
@@ -50,9 +61,12 @@ public:
 	bool mIsVisible{};//可不可见（有没有被玩家看见）
 	bool mIsGenerated{};//是否被生成
 
-	WorldPos mWorldPos;//位于世界的哪个位置（区块坐标轴）
+	WorldPos worldPos;//位于世界的哪个位置（区块坐标轴）
 
-	uint8_t blocks[16][16][16]{};//对应[x][y][z]位置的方块ID，默认初始化为0
+	uint16_t blocks[16][16][16]{};//对应[x][y][z]位置的方块ID，默认初始化为0
+
+	//不会被存到文件中的数据
+	//int somevalues=123;
 
 public:
 	
@@ -61,7 +75,7 @@ public:
 	bool isVisible() const { return mIsVisible; }
 	bool isGenerated() const { return mIsGenerated; }
 
-	WorldPos getWorldPos() const { return mWorldPos; }
+	WorldPos getWorldPos() const { return worldPos; }
 
 	uint8_t getBlockID(uint8_t x, uint8_t y, uint8_t z) const {
 		
@@ -103,7 +117,7 @@ public:
 	template<class Archive>
 	void serialize(Archive& ar) {
 		ar(mHasBlock, mIsLoaded, mIsVisible,mIsGenerated,
-			mWorldPos,
+			worldPos,
 			cereal::binary_data(blocks, sizeof(blocks)));
 		// blocks : (Qwen3-Max) 将三维数组展平为一维进行序列化（最简单方式）
 	}
@@ -141,51 +155,38 @@ public:
 		iarchive(*this);
 	}
 
-	void generate(const LayeredNoise& noise) {
+	void generate(const double noise_cache[16][16]) {
 		//柏林算法生成
-		
+
 		mIsVisible = true;
 		mIsLoaded = true;
 		mHasBlock = true;//先使得区块可见
 
 		//尝试优化
 
-		double noise_cache[16][16];
-		for (int x = 0; x < 16; ++x) {
-			for (int z = 0; z < 16; ++z) {
-				noise_cache[x][z] = noise.mountainNoise(
-					x + mWorldPos.x * 16,
-					z + mWorldPos.z * 16
-				);
-			}
-		}
-
 		for (int x = 0; x < 16; ++x) {
 			for (int y = 0; y < 16; ++y) {
 				for (int z = 0; z < 16; ++z) {
-
-					//获取该点的柏林噪声值
-					//double value = noise.mountainNoise(x + mWorldPos.x * 16, z + mWorldPos.z * 16);
-
-					if (y + mWorldPos.y * 16 < noise_cache[x][z] * 512) {
+					if (y + worldPos.y * 16 < noise_cache[x][z] * 512) {
 						blocks[x][y][z] = 1;
 					}
-
 				}
 			}
 		}
-
 	}
 };
 
+
+
+//区域类
 class Region {
 public:
 
 
 	//Region只使用WorldPos的 x,z 坐标，不使用 y 坐标
 	Region(long long x, long long z) {
-		mWorldPos.x = x;
-		mWorldPos.z = z;
+		worldPos.x = x;
+		worldPos.z = z;
 
 		regionMap[x][z] = this;
 
@@ -194,20 +195,20 @@ public:
 				for (int k = 0; k < regionZ; k++) {
 					//Region大小为512x512所以其worldPos是512倍放大的，chunk大小为16x16x16所以其
 					//WorldPos大小是16倍放大的（都是相对于方块的WorldPos来说）
-					chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY);
+					//chunks[i][j][k] = std::make_unique<Chunk>(i + x * regionX, j, k + z * regionY);
 				}
 			}
 		}
 	}
 
-	WorldPos mWorldPos;
+	WorldPos worldPos;
 
 	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 512 x 512 = 134217728 格方块
 
 	//序列化函数模板
 	template<class Archive>
 	void serialize(Archive& ar) {
-		ar(mWorldPos);
+		ar(worldPos);
 
 		for (int i = 0; i < regionX; i++) {
 			for (int j = 0; j < regionY; j++) {
@@ -256,13 +257,13 @@ public:
 		iarchive(*this);
 
 		//将自己加入世界的regionMap
-		regionMap[mWorldPos.x][mWorldPos.z] = this;
+		regionMap[worldPos.x][worldPos.z] = this;
 	}
 
 	void unload() {
 
 		//将自己从worldMap中移除
-		regionMap[mWorldPos.x][mWorldPos.z] = nullptr;
+		regionMap[worldPos.x][worldPos.z] = nullptr;
 	}
 
 	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset,unsigned int maxCount) const {
@@ -271,15 +272,66 @@ public:
 			for (int j = 0; j < regionY; j++) {
 				for (int k = 0; k < regionZ; k++) {
 					//逐个getVecs
-					IndexOffset = chunks[i][j][k]->getVecs(vecs, IndexOffset, maxCount);
+					if (chunks[i][j][k])//仅当区块存在时才调用getVecs
+						IndexOffset = chunks[i][j][k]->getVecs(vecs, IndexOffset, maxCount);
 				}
 			}
 		}
 		return IndexOffset;
 	}
+
+	//直接生成整个区域的地形
+	int generate(const LayeredNoise& noise) {
+		for (int x = 0; x < 32; ++x) {
+			for (int z = 0; z < 32; ++z) {
+
+				//生成噪声图
+				double noise_cache[16][16];
+				for (int i = 0; i < 16; ++i) {
+					for (int j = 0; j < 16; ++j) {
+						noise_cache[i][j] = noise.mountainNoise(
+							i + x * 16 + worldPos.x * 512,
+							j + z * 16 + worldPos.z * 512
+						);
+					}
+				}
+				for (int y = 0; y < 32; ++y) {
+					if (chunks[x][y][z] == nullptr) {
+						chunks[x][y][z] = std::make_unique<Chunk>(x + worldPos.x * regionX, y, z + worldPos.z * regionY);
+					}
+					chunks[x][y][z]->generate(noise_cache);
+				}
+
+			}
+		}
+		return 0;//正常退出
+	}
+
+	//只生成单个区块的地形
+	int generate(const LayeredNoise& noise,int x,int z) {
+
+		//生成噪声图
+		double noise_cache[16][16];
+		for (int i = 0; i < 16; ++i) {
+			for (int j = 0; j < 16; ++j) {
+				noise_cache[i][j] = noise.mountainNoise(
+					i + x * 16 + worldPos.x * 512,
+					j + z * 16 + worldPos.z * 512
+				);
+			}
+		}
+		for (int y = 0; y < 32; ++y) {
+			if (chunks[x][y][z] == nullptr) {
+				chunks[x][y][z] = std::make_unique<Chunk>(x + worldPos.x * regionX, y, z + worldPos.z * regionY);
+			}
+			chunks[x][y][z]->generate(noise_cache);
+		}
+
+		return 0;
+	}
 };
 
-Region* regions[9];
+std::array<Region*, 9> regions;
 
 
 void initChunks() {
@@ -304,6 +356,8 @@ void saveChunks(const std::string path) {
 */
 void renderChunks(int maxRenderAmount) {
 	
+
+
 	//与空气方块相邻的非空气方块渲染
 
 	//返回要渲染的方块的个数为amount
@@ -312,16 +366,62 @@ void renderChunks(int maxRenderAmount) {
 	//以玩家为中心↑↓←→寻路来确定？？？
 }
 
+Region* getRegionByBlock(long long x, long long z) {
+	//1.获取这格方块对应的区域
+
+	int regX = x / 512; if (x < 0) --regX;// -1/512 = 0 ≠-1 所以对于x<0要-1
+
+	int regZ = z / 512; if (z < 0) --regZ;
+
+	return regionMap[regX][regZ];
+}
+
+Chunk* getChunkByRegion(long long x, long long y, long long z,Region* region) {
+
+	if (region == nullptr) return nullptr;//region不存在则返回nullptr
+
+	//2.获取这格方块在区域内对应的区块
+	int chkX = x % 512; chkX /= 16; if (x < 0) chkX += regionX - 1;
+
+	int chkY = x % 512; chkY /= 16; if (y < 0) chkY += regionY - 1;
+
+	int chkZ = z % 512; chkZ /= 16; if (z < 0) chkZ += regionZ - 1;
+
+	return region->chunks[chkX][chkY][chkZ].get();
+}
+
+//通过xyz获取方块
+int getBlock(long long x, long long y, long long z) {
+
+	//1.获取这格方块对应的区域
+	Region* region = getRegionByBlock(x, z);
+
+	if (region == nullptr) return 0;//区域未加载或未生成
+
+	//2.获取这格方块在区域内对应的区块
+
+	Chunk* chunk = getChunkByRegion(x, y, z, region);
+	if (chunk == nullptr) return 0;//区块未加载或未生成
+
+	//3. 获得这格方块的ID
+	int blkX = x % 16; if (x < 0) blkX += 15;
+	int blkY = y % 16; if (y < 0) blkY += 15;
+	int blkZ = z % 16; if (z < 0) blkZ += 15;
+
+	return chunk->blocks[blkX][blkY][blkZ];
+
+}
+
 unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned int maxCount) const {
 
-	if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
-	if (mIsLoaded == 0) return IndexOffset;//没加载也不渲染（没加载就应该不会调用这个函数？）
-	if (mHasBlock == 0) return IndexOffset;//区块里没有方块也不渲染
+	//if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
+	//if (mIsLoaded == 0) return IndexOffset;//没加载也不渲染（没加载就应该不会调用这个函数？）
+	//if (mHasBlock == 0) return IndexOffset;//区块里没有方块也不渲染
 
 	unsigned int vecIndex = IndexOffset;//防止不同Chunk的矩阵之间互相覆盖
 
 	//世界偏移量，区块在世界的哪个位置（区块坐标轴）
-	glm::vec3 WorldOffset(mWorldPos.x * 16, mWorldPos.y * 16, mWorldPos.z * 16);
+	glm::vec3 WorldOffset(worldPos.x * 16, worldPos.y * 16, worldPos.z * 16);
 
 
 	for (int x = 0; x < 16; ++x) {
@@ -340,15 +440,15 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 					//如果位于region边缘，或邻居区块是空的就暴露
 
 					//是否处在region边缘
-					if (mWorldPos.x % regionX == 0 && x == 0 ||
-						mWorldPos.y % regionY == 0 && y == 0 ||
-						mWorldPos.z % regionZ == 0 && z == 0 ||
-						mWorldPos.x % regionX == 31 && x == 15 ||
-						mWorldPos.y % regionY == 31 && y == 15 ||
-						mWorldPos.z % regionZ == 31 && z == 15 ||
+					if (worldPos.x % regionX == 0 && x == 0 ||
+						worldPos.y % regionY == 0 && y == 0 ||
+						worldPos.z % regionZ == 0 && z == 0 ||
+						worldPos.x % regionX == 31 && x == 15 ||
+						worldPos.y % regionY == 31 && y == 15 ||
+						worldPos.z % regionZ == 31 && z == 15 ||
 						//负数区
-						mWorldPos.x % regionX == -1 && x == 15 ||
-						mWorldPos.z % regionZ == -1 && z == 15
+						worldPos.x % regionX == -1 && x == 15 ||
+						worldPos.z % regionZ == -1 && z == 15
 						)
 					{
 						exposed = true;
@@ -360,8 +460,8 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 
 						//获取自身所在region的指针
 						Region* myRegion = regionMap
-							[std::floor((double)mWorldPos.x / regionX)] // 区块坐标轴向下取整
-							[std::floor((double)mWorldPos.z / regionZ)];
+							[std::floor((double)worldPos.x / regionX)] // 区块坐标轴向下取整
+							[std::floor((double)worldPos.z / regionZ)];
 
 						if (myRegion == nullptr) {
 							std::cout << "[ERROR] myRegion指针为nullptr，从regionMap中获取的指针不可用" << '\n';
@@ -371,30 +471,33 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 
 
 						//保证其不为负数
-						int selfX = mWorldPos.x % regionX;
+						int selfX = worldPos.x % regionX;
 						if (selfX < 0) selfX += regionX;
 
-						int selfZ = mWorldPos.z % regionZ;
+						int selfZ = worldPos.z % regionZ;
 						if (selfZ < 0) selfZ += regionZ;
 
 						//卧槽我tm面对的原来是正x轴？
-						if (exposed == false && x == 0) {
-							exposed = myRegion->chunks[selfX - 1][mWorldPos.y][selfZ]->blocks[15][y][z] == 0;
+
+						//myRegion->chunks[x][y][z]的用处：仅当区块存在时判断，如果区块不存在就跳过
+
+						if (exposed == false && x == 0 && myRegion->chunks[selfX - 1][worldPos.y][selfZ]) {
+							exposed = myRegion->chunks[selfX - 1][worldPos.y][selfZ]->blocks[15][y][z] == 0;
 						}
-						if (exposed == false && y == 0) {
-							exposed = myRegion->chunks[selfX][mWorldPos.y - 1][selfZ]->blocks[x][15][z] == 0;
+						if (exposed == false && y == 0 && myRegion->chunks[selfX][worldPos.y - 1][selfZ]) {
+							exposed = myRegion->chunks[selfX][worldPos.y - 1][selfZ]->blocks[x][15][z] == 0;
 						}
-						if (exposed == false && z == 0) {
-							exposed = myRegion->chunks[selfX][mWorldPos.y][selfZ - 1]->blocks[x][y][15] == 0;
+						if (exposed == false && z == 0 && myRegion->chunks[selfX][worldPos.y][selfZ - 1]) {
+							exposed = myRegion->chunks[selfX][worldPos.y][selfZ - 1]->blocks[x][y][15] == 0;
 						}
-						if (exposed == false && x == 15) {
-							exposed = myRegion->chunks[selfX + 1][mWorldPos.y][selfZ]->blocks[0][y][z] == 0;
+						if (exposed == false && x == 15 && myRegion->chunks[selfX + 1][worldPos.y][selfZ]) {
+							exposed = myRegion->chunks[selfX + 1][worldPos.y][selfZ]->blocks[0][y][z] == 0;
 						}
-						if (exposed == false && y == 15) {
-							exposed = myRegion->chunks[selfX][mWorldPos.y + 1][selfZ]->blocks[x][0][z] == 0;
+						if (exposed == false && y == 15 && myRegion->chunks[selfX][worldPos.y + 1][selfZ]) {
+							exposed = myRegion->chunks[selfX][worldPos.y + 1][selfZ]->blocks[x][0][z] == 0;
 						}
-						if (exposed == false && z == 15) {
-							exposed = myRegion->chunks[selfX][mWorldPos.y][selfZ + 1]->blocks[x][y][0] == 0;
+						if (exposed == false && z == 15 && myRegion->chunks[selfX][worldPos.y][selfZ + 1]) {
+							exposed = myRegion->chunks[selfX][worldPos.y][selfZ + 1]->blocks[x][y][0] == 0;
 						}
 						//TMD这段代码看的我要瞎了，有没有更好的判断方法？
 
@@ -428,7 +531,7 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 				
 				//exposed = true;//设为一直暴露
 				if (exposed == false)
-					continue;//没暴露就直接下一个循环不做判断
+					continue;//没暴露就直接下一个循环不加入该方块
 
 				//如果 vecIndex 过大就直接返回它
 				if (vecIndex < maxCount) {
@@ -444,3 +547,4 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 
 	return vecIndex;//返回最后未修改的下标
 }
+
