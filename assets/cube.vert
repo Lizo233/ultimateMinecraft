@@ -1,8 +1,9 @@
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec2 aTexCoord;
-layout (location = 2) in int aFace;
-layout (location = 3) in vec3 instanceVector;
+layout (location = 2) in float aFace;
+
+layout (location = 3) in vec3 instanceVector;//实例化数组
 
 layout (std140) uniform Matrices
 {

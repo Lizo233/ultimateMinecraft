@@ -7,7 +7,7 @@
 
 
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
-
+	
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
 
 	//将本地化设置为UTF-8
@@ -33,7 +33,6 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	shaderInit();
 
 	//键鼠输入初始化
-
 	userInputInit();
 
 	//绑定透视和投影矩阵
@@ -52,7 +51,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	cubeShader->setUniInt("texture0", 0);
 
 	//世界位置矩阵（模型矩阵）初始化
-	unsigned int amount = 5000000;
+	unsigned int amount = 1500000;
 	modelVecs = new glm::vec3[amount];
 
 	//static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
@@ -72,38 +71,25 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	//创建一个新的region
 	regions[0] = new Region(0, 0);
-	regions[1] = new Region(-1, 0);
-	regions[2] = new Region(-1, -1);
-	regions[3] = new Region(0, -1);
 
 	LayeredNoise terraNoise(12345);
 
-	// 使用一维索引进行并行化
-	std::vector<int> indices(32 * 32 * 32);
-	std::iota(indices.begin(), indices.end(), 0);
+	regions[0]->generate(terraNoise, 2, 2);
 
-	std::for_each(std::execution::par_unseq, indices.begin(), indices.end(),
-		[&](int idx) {
-			int x = idx / (32 * 32);
-			int y = (idx % (32 * 32)) / 32;
-			int z = idx % 32;
-			regions[0]->chunks[x][y][z]->generate(terraNoise);
-			regions[1]->chunks[x][y][z]->generate(terraNoise);
-			regions[2]->chunks[x][y][z]->generate(terraNoise);
-			regions[3]->chunks[x][y][z]->generate(terraNoise);
-		});
+	//获取方块测试
+	std::cout << "getblock: " << getBlock(40,40,40) << '\n';
 
 	//regions[0]->saveRegion("region.bin");
 	//regions[0]->loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 	//vecIndex = region.chunks[1][2][3]->getVecs(modelVecs, vecIndex);
-	vecIndex = regions[0]->getVecs(modelVecs, vecIndex, amount);
-	std::cout << vecIndex << '\n';
-	vecIndex = regions[1]->getVecs(modelVecs, vecIndex, amount);
-	std::cout << vecIndex << '\n';
-	vecIndex = regions[2]->getVecs(modelVecs, vecIndex, amount);
-	std::cout << vecIndex << '\n';
-	vecIndex = regions[3]->getVecs(modelVecs, vecIndex, amount);
+
+	for (const auto region : regions) {
+		if (region)//仅当region!=nullptr时调用
+		vecIndex = region->getVecs(modelVecs, vecIndex, amount);
+	}
+
+	//vecIndex = regions[0]->getVecs(modelVecs, vecIndex, amount);
 	std::cout << vecIndex << '\n';
 
 	//实例化
@@ -129,6 +115,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	glBindVertexArray(0);//解绑vao
 
+	
+
 	logInfo("主循环开始");
 	while (!glfwWindowShouldClose(window)) {
 		//时间更新，deltaTime更新
@@ -139,13 +127,15 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		//获取view矩阵
 		glm::mat4 view = camera.getViewMatrix();
 		glBindBuffer(GL_UNIFORM_BUFFER, uboMatrices);//绑定ubo
+
 		//传输view矩阵到显存，并将它的偏移量设置为sizeof(glm::mat4)使得它不会覆盖projection矩阵
 		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(glm::mat4), sizeof(glm::mat4), glm::value_ptr(view));
 		glBindBuffer(GL_UNIFORM_BUFFER, 0);//解绑ubo
 
 		//绘画
 		cubeShader->active();
-		cubeShader->setUniMat4("model", glm::scale(glm::mat4(1.0),glm::vec3(1.0)));//设置位移、旋转、缩放矩阵
+		cubeShader->setUniMat4("model", glm::mat4(1.0));//设置位移、旋转、缩放矩阵
+
 		glBindVertexArray(vaoMap["cube"]);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 36, amount);
