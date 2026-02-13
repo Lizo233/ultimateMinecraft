@@ -74,6 +74,9 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	LayeredNoise terraNoise(12345);
 
+	regions[0]->generate(terraNoise, 1, 1);
+	regions[0]->generate(terraNoise, 1, 2);
+	regions[0]->generate(terraNoise, 2, 1);
 	regions[0]->generate(terraNoise, 2, 2);
 
 	//获取方块测试
@@ -82,14 +85,13 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//regions[0]->saveRegion("region.bin");
 	//regions[0]->loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
-	//vecIndex = region.chunks[1][2][3]->getVecs(modelVecs, vecIndex);
 
 	for (const auto region : regions) {
 		if (region)//仅当region!=nullptr时调用
 		vecIndex = region->getVecs(modelVecs, vecIndex, amount);
 	}
 
-	//vecIndex = regions[0]->getVecs(modelVecs, vecIndex, amount);
+
 	std::cout << vecIndex << '\n';
 
 	//实例化

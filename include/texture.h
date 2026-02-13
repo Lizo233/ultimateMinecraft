@@ -63,24 +63,26 @@ void textureInit() {
 	const int LAYER_COUNT = 3;        // 3层
 
 	// 三个文件名
-	const char* textureFiles[LAYER_COUNT] = {
-		"assets/top.png",
-		"assets/side.png",
-		"assets/bottom.png"
+	const char* textureFiles[LAYER_COUNT] = {//textureArray编号
+		"assets/top.png",//编号0
+		"assets/side.png",//编号1
+		"assets/bottom.png"//编号1
 	};
 
 	//纹理数组
 	glGenTextures(1, &textureArray);
 	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArray);
 	
-	// 分配不可变存储：1级mipmap，内部格式RGBA8，宽高16，3层
-	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 1, GL_RGBA8, TEXTURE_SIZE, TEXTURE_SIZE, LAYER_COUNT);
+	// 分配不可变存储：5级mipmap，内部格式RGBA8，宽高16，3层
+	glTexStorage3D(GL_TEXTURE_2D_ARRAY, 5, GL_RGBA8, TEXTURE_SIZE, TEXTURE_SIZE, LAYER_COUNT);
+	
 
 	// 设置纹理参数
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D_ARRAY, GL_TEXTURE_MAX_LEVEL, 4); // 0 ~ 4
 
 	// 加载每一层
 	stbi_set_flip_vertically_on_load(true); // 使图片原点位于左下角，与OpenGL一致
@@ -106,6 +108,7 @@ void textureInit() {
 			data);
 		stbi_image_free(data);
 	}
+	glGenerateMipmap(GL_TEXTURE_2D_ARRAY);
 
 
 
