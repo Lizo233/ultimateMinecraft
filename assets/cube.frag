@@ -3,7 +3,7 @@ uniform sampler2D texture0;
 uniform sampler2DArray uTextureArray;
 
 in vec2 TexCoord;
-in float face;
+flat in int face;
 
 out vec4 FragColor;
 
@@ -29,9 +29,9 @@ void main()
     //材质数组
     if (face == 0) {//侧面
         FragColor = texture(uTextureArray, vec3(TexCoord, 1));
-    } else if (face==-1.0) {//底面
+    } else if (face == -1) {//底面
         FragColor = texture(uTextureArray, vec3(TexCoord, 2));
-    } else if (face==1.0) {//顶面
+    } else if (face == 1) {//顶面
         float color = texture(uTextureArray, vec3(TexCoord, 0)).r;
         FragColor = vec4(color*0.63,color*0.95,color*0.432,1.0);
     }

@@ -51,7 +51,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	cubeShader->setUniInt("texture0", 0);
 
 	//世界位置矩阵（模型矩阵）初始化
-	unsigned int amount = 1500000;
+	unsigned int amount = 15000;
 	modelVecs = new glm::vec3[amount];
 
 	//static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点

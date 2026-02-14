@@ -13,7 +13,7 @@ layout (std140) uniform Matrices
 uniform mat4 model;
 
 out vec2 TexCoord;
-out float face;
+flat out int face;
 
 //矩阵位移函数
 mat4 translate(mat4 m,vec3 t) {
@@ -24,7 +24,7 @@ mat4 translate(mat4 m,vec3 t) {
 void main()
 {
     TexCoord = aTexCoord;
-    face = aFace;
+    face = int(round(aFace));
 
     //实例化
 
