@@ -120,7 +120,7 @@ void shaderInit() {
 uint32_t uboMatrices;//设置为全局变量方便读取
 
 //投影矩阵只需要计算一次（如果不改变FOV的话）此为透视投影矩阵
-glm::mat4 projection = glm::perspective(glm::radians(60.0), (double)DEFAULT_WIDTH / DEFAULT_HEIGHT, 0.1, 1000.0);
+glm::mat4 projection = glm::perspective(glm::radians(70.0), (double)DEFAULT_WIDTH / DEFAULT_HEIGHT, 0.1, 1000.0);
 void uboInit() {
 
 	//把这个shaderProgram的对应的UniformBlock绑定到BindingPoint0

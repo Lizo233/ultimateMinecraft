@@ -66,7 +66,7 @@ void textureInit() {
 	const char* textureFiles[LAYER_COUNT] = {//textureArray编号
 		"assets/top.png",//编号0
 		"assets/side.png",//编号1
-		"assets/bottom.png"//编号1
+		"assets/bottom.png"//编号2
 	};
 
 	//纹理数组

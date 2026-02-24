@@ -386,7 +386,7 @@ Chunk* getChunkByRegion(long long x, long long y, long long z,Region* region) {
 	//2.获取这格方块在区域内对应的区块
 	int chkX = x % 512; chkX /= 16; if (x < 0) chkX += regionX - 1;
 
-	int chkY = x % 512; chkY /= 16; if (y < 0) chkY += regionY - 1;
+	int chkY = y % 512; chkY /= 16; if (y < 0) chkY += regionY - 1;
 
 	int chkZ = z % 512; chkZ /= 16; if (z < 0) chkZ += regionZ - 1;
 
@@ -411,7 +411,7 @@ int getBlock(long long x, long long y, long long z) {
 	int blkY = y % 16; if (y < 0) blkY += 15;
 	int blkZ = z % 16; if (z < 0) blkZ += 15;
 
-	return chunk->blocks[blkX][blkY][blkZ];
+	 return chunk->blocks[blkX][blkY][blkZ];
 
 }
 

@@ -237,48 +237,62 @@ std::map<std::string, unsigned int> vboMap;
 void vboInit() {
 	//
 	float cubeVertices[] = {
-		// Back face
- 0.0f,  0.0f,  0.0f,  0.0f, 0.0f, 0.0f, // Bottom-left
- 1.0f,  1.0f,  0.0f,  1.0f, 1.0f, 0.0f, // top-right
- 1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-right         
- 1.0f,  1.0f,  0.0f,  1.0f, 1.0f, 0.0f, // top-right
- 0.0f,  0.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
- 0.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
- // Front face
-0.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-1.0f,  0.0f,  1.0f,  1.0f, 0.0f, 0.0f, // bottom-right
-1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f, // top-right
-1.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f, // top-right
-0.0f,  1.0f,  1.0f,  0.0f, 1.0f, 0.0f, // top-left
-0.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-// Left face
-0.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f, // top-right
-0.0f,  1.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-left
-0.0f,  0.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-0.0f,  0.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-left
-0.0f,  0.0f,  1.0f,  1.0f, 0.0f, 0.0f, // bottom-right
-0.0f,  1.0f,  1.0f,  1.0f, 1.0f, 0.0f, // top-right
-// Right face
- 1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 0.0f, // top-left
- 1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-right
- 1.0f,  1.0f,  0.0f,  1.0f, 1.0f, 0.0f, // top-right         
- 1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 0.0f, // bottom-right
- 1.0f,  1.0f,  1.0f,  0.0f, 1.0f, 0.0f, // top-left
- 1.0f,  0.0f,  1.0f,  0.0f, 0.0f, 0.0f, // bottom-left     
- // Bottom face
-  0.0f,  0.0f,  0.0f,  0.0f, 1.0f, -1.0f, // top-right
-  1.0f,  0.0f,  0.0f,  1.0f, 1.0f, -1.0f, // top-left
-  1.0f,  0.0f,  1.0f,  1.0f, 0.0f, -1.0f, // bottom-left
-  1.0f,  0.0f,  1.0f,  1.0f, 0.0f, -1.0f, // bottom-left
-  0.0f,  0.0f,  1.0f,  0.0f, 0.0f, -1.0f, // bottom-right
-  0.0f,  0.0f,  0.0f,  0.0f, 1.0f, -1.0f, // top-right
-  // Top face
-   0.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-   1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 1.0f, // bottom-right
-   1.0f,  1.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-right     
-   1.0f,  1.0f,  1.0f,  1.0f, 0.0f, 1.0f, // bottom-right
-   0.0f,  1.0f,  0.0f,  0.0f, 1.0f, 1.0f, // top-left
-   0.0f,  1.0f,  1.0f,  0.0f, 0.0f, 1.0f, // bottom-left      
+		// 坐标结构: x, y, z, u, v, textureID
+		// 范围: X[0,1], Y[-1,0], Z[-1,0]
+
+		// 后脸 (Back Face) - 面对 -Z 方向
+		// 逆时针顺序: 右下 -> 左下 -> 左上, 左上 -> 右上 -> 右下
+		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 3.0f, // bottom-right
+		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 3.0f, // bottom-left
+		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 3.0f, // top-left
+		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 3.0f, // top-left
+		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 3.0f, // top-right
+		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 3.0f, // bottom-right
+
+		// 前脸 (Front Face) - 面对 +Z 方向
+		// 逆时针顺序: 左下 -> 右下 -> 右上, 右上 -> 左上 -> 左下
+		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 2.0f, // bottom-left
+		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 2.0f, // bottom-right
+		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 2.0f, // top-right
+		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 2.0f, // top-right
+		0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 2.0f, // top-left
+		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 2.0f, // bottom-left
+
+		// 左脸 (Left Face) - 面对 -X 方向
+		// 逆时针顺序: 后下 -> 前下 -> 前上, 前上 -> 后上 -> 后下
+		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f, // bottom-back
+		0.0f, -1.0f,  0.0f,  1.0f, 0.0f, 1.0f, // bottom-front
+		0.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-front
+		0.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-front
+		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-back
+		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f, // bottom-back
+
+		// 右脸 (Right Face) - 面对 +X 方向
+		// 逆时针顺序: 前下 -> 后下 -> 后上, 后上 -> 前上 -> 前下
+		1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-front
+		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 0.0f, // bottom-back
+		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 0.0f, // top-back
+		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 0.0f, // top-back
+		1.0f,  0.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-front
+		1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-front
+
+		// 底脸 (Bottom Face) - 面对 -Y 方向
+		// 逆时针顺序: 前左 -> 后左 -> 后右, 后右 -> 前右 -> 前左
+		0.0f, -1.0f,  0.0f,  0.0f, 1.0f, 5.0f, // front-left
+		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 5.0f, // back-left
+		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 5.0f, // back-right
+		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 5.0f, // back-right
+		1.0f, -1.0f,  0.0f,  1.0f, 1.0f, 5.0f, // front-right
+		0.0f, -1.0f,  0.0f,  0.0f, 1.0f, 5.0f, // front-left
+
+		// 顶脸 (Top Face) - 面对 +Y 方向
+		// 逆时针顺序: 后左 -> 前左 -> 前右, 前右 -> 后右 -> 后左
+		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 4.0f, // back-left
+		0.0f,  0.0f,  0.0f,  0.0f, 0.0f, 4.0f, // front-left
+		1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 4.0f, // front-right
+		1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 4.0f, // front-right
+		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 4.0f, // back-right
+		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 4.0f, // back-left
 	};
 
 	glGenBuffers(1, &vboMap["cube"]);//创建VBO
@@ -294,7 +308,7 @@ void vboInit() {
 	//槽位2，侧面、顶部、底部分辨
 	glVertexAttribPointer(2, 1, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(5 * sizeof(float)));
 	glEnableVertexAttribArray(2);//激活2号槽
-	glBindVertexArray(0);//解绑VBO
+	glBindVertexArray(0);//解绑VAO
 	glBindBuffer(GL_ARRAY_BUFFER, 0);//解绑VBO
 
 	logInfo("vbo初始化完成");

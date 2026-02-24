@@ -4,6 +4,7 @@
 #include <player.h>//玩家
 #include <texture.h>//材质加载
 #include <game/game.h>//游戏功能
+#include <game/render.h>//渲染
 
 
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
@@ -58,7 +59,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//默认将草方块铺成一个10x10的平面，位于y=-1.0处
 	for (int i = 0; i < 10; i++) {
 		for (int j = 0; j < 10; j++) {
-			modelVecs[i * 10 + j] = glm::vec3(0,-1,0);
+			modelVecs[i * 10 + j] = glm::vec3(0,-5,0);
 		}
 	}
 
@@ -70,53 +71,39 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	initChunks();
 
 	//创建一个新的region
-	regions[0] = new Region(0, -1, 0);
+	regions[0] = new Region(0, 0, 0);
 
 	LayeredNoise terraNoise(12345);
 
+
+	/*for (int x=0; x < 16; ++x) {
+		for (int z=0; z < 16; ++z) {
+			regions[0]->generate(terraNoise, x, z);
+		}
+	}*/
 	regions[0]->generate(terraNoise, 1, 1);
-	
 
 	//获取方块测试
-	std::cout << "getblock: " << getBlock(40,40,40) << '\n';
+	std::cout << "getblock: " << getBlock(-1,-1,-1) << '\n';
 
 	//regions[0]->saveRegion("region.bin");
 	//regions[0]->loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 
 	for (const auto region : regions) {
-		//break;//暂时禁用
+		break;//暂时禁用
 		if (region)//仅当region!=nullptr时调用
 		vecIndex = region->getVecs(modelVecs, vecIndex, amount);
 	}
 
 
-	std::cout << vecIndex << '\n';
 
-	//实例化
+	std::vector<ChunkMesh*> meshRegion;
+	meshDraw(meshRegion, regions[0]);
 	
-	// configure instanced array
-	// -------------------------
-	unsigned int instanceBuffer;
-	glGenBuffers(1, &instanceBuffer);
-	glBindVertexArray(vaoMap["cube"]);//绑定vao（其实在设置vao属性之前执行绑定vao也行，但为了防止你迷惑）
-	glBindBuffer(GL_ARRAY_BUFFER, instanceBuffer);//把instanceBuffer绑定到openGL的vbo槽位上
-	//在显存上开辟大小为amount  * sizeof(glm::vec3)大小的数组
-	glBufferData(GL_ARRAY_BUFFER, amount * sizeof(glm::vec3), modelVecs, GL_STATIC_DRAW);
-
-	// set transformation matrices as an instance vertex attribute (with divisor 1)
-	// note: we're cheating a little by taking the, now publicly declared, VAO of the model's mesh(es) and adding new vertexAttribPointers
-	// normally you'd want to do this in a more organized fashion, but for learning purposes this will do.
-	// -----------------------------------------------------------------------------------------------------------------------------------
-	// set attribute pointers for matrix (4 times vec4)
-	//glBindVertexArray(vaoMap["cube"]);//在这里绑定vao也是可行的
-	glEnableVertexAttribArray(3);
-	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
-	glVertexAttribDivisor(3, 1);
-
-	glBindVertexArray(0);//解绑vao
-
-	
+	//ChunkMesh mesh;
+	//regions[0]->chunks[1][16][1]->blocks[13][13][13] = 1;
+	//mesh.update(*regions[0]->chunks[1][16][1]);
 
 	logInfo("主循环开始");
 	while (!glfwWindowShouldClose(window)) {
@@ -139,7 +126,11 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		glBindVertexArray(vaoMap["cube"]);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
-		glDrawArraysInstanced(GL_TRIANGLES, 0, 36, amount);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		for (ChunkMesh* mesh : meshRegion) {
+			mesh->draw();
+		}
 
 		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 

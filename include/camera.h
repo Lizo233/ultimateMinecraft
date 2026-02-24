@@ -125,7 +125,7 @@ private:
 };
 
 //声明默认的camera对象
-Camera camera(mainPlayer,glm::vec3(0.0, 0.0, 0.0));
+Camera camera(mainPlayer,glm::vec3(0.0, 270.0, 0.0));
 
 
 extern double deltaTime;
