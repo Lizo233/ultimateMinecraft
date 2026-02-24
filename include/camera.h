@@ -66,12 +66,10 @@ public:
 	Camera(Player& player,glm::vec3 position = glm::vec3(0.0, 0.0, 0.0), glm::vec3 up = glm::vec3(0.0, 1.0, 0.0), float yaw = DEFAULT_YAW, float pitch = DEFAULT_PITCH) : mPlayer(player), movementSpeed(DEFAULT_SPEED), mouseSensitivity(DEFAULT_SENSITIVITY), zoom(DEFAULT_ZOOM)
 	{
 		mPlayer.playerPos = position;
-		mPlayer.mYaw = yaw;
+		mPlayer.mYaw = yaw+90;
 		mPlayer.mPitch = pitch;
 
 		//std::cout << mPlayer.playerPos.y << ' ' << player.playerPos.y << '\n';
-
-		mPlayer.Front = glm::vec3(1.0, 0.0, 0.0);
 
 		WorldUp = up;
 		mPlayer.setCamera(this);
@@ -127,7 +125,7 @@ private:
 };
 
 //声明默认的camera对象
-Camera camera(mainPlayer,glm::vec3(0.0, 270.0, 0.0));
+Camera camera(mainPlayer,glm::vec3(0.0, 0.0, 0.0));
 
 
 extern double deltaTime;

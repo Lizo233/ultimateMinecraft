@@ -29,10 +29,10 @@ void main()
     //实例化
 
     // 构造位移矩阵
-    mat4 trans = mat4(1.0, 0.0, 0.0, 0.0,
+    mat4 translate = mat4(1.0, 0.0, 0.0, 0.0,
                       0.0, 1.0, 0.0, 0.0,
                       0.0, 0.0, 1.0, 0.0,
                       instanceVector, 1.0);
 
-    gl_Position = projection * view * trans * vec4(aPos, 1.0);
+    gl_Position = projection * view * translate * vec4(aPos, 1.0);
 }  

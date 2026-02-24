@@ -7,7 +7,7 @@
 
 
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
-	
+
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
 
 	//将本地化设置为UTF-8
@@ -58,7 +58,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//默认将草方块铺成一个10x10的平面，位于y=-1.0处
 	for (int i = 0; i < 10; i++) {
 		for (int j = 0; j < 10; j++) {
-			modelVecs[i * 10 + j] = glm::vec3(i - 5, -1, j - 5);
+			modelVecs[i * 10 + j] = glm::vec3(0,-1,0);
 		}
 	}
 
@@ -70,14 +70,12 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	initChunks();
 
 	//创建一个新的region
-	regions[0] = new Region(0, 0);
+	regions[0] = new Region(0, -1, 0);
 
 	LayeredNoise terraNoise(12345);
 
 	regions[0]->generate(terraNoise, 1, 1);
-	regions[0]->generate(terraNoise, 1, 2);
-	regions[0]->generate(terraNoise, 2, 1);
-	regions[0]->generate(terraNoise, 2, 2);
+	
 
 	//获取方块测试
 	std::cout << "getblock: " << getBlock(40,40,40) << '\n';
@@ -87,6 +85,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 
 	for (const auto region : regions) {
+		//break;//暂时禁用
 		if (region)//仅当region!=nullptr时调用
 		vecIndex = region->getVecs(modelVecs, vecIndex, amount);
 	}
@@ -141,6 +140,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		glBindVertexArray(vaoMap["cube"]);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDrawArraysInstanced(GL_TRIANGLES, 0, 36, amount);
+
+		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 
 		//处理用户的输入
 		processInput(window);
