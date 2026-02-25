@@ -84,7 +84,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	regions[0]->generate(terraNoise);
 
 	//获取方块测试
-	std::cout << "getblock: " << getBlock(-1,-1,-1) << '\n';
+	std::cout << "getblock: " << getBlock(-1,1,-1) << '\n';
 
 	//regions[0]->saveRegion("region.bin");
 	//regions[0]->loadRegion("region.bin");
@@ -92,7 +92,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 
-	std::vector<ChunkMesh*> meshRegion;
+	std::vector<std::unique_ptr<ChunkMesh>> meshRegion;
 	//meshDraw(meshRegion, regions[0]);
 	
 	//ChunkMesh mesh;
@@ -125,29 +125,89 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		static int x = 0;
 		static int y = 0;
 		static int z = 0;
-		
-		ChunkMesh* mesh = new ChunkMesh;
-		mesh->update(*regions[0]->chunks[x][y][z]);
 
-		meshRegion.push_back(mesh);
+		static bool updateComplete = false;
+		
+		std::unique_ptr<ChunkMesh> mesh = std::make_unique<ChunkMesh>();//创建ChunkMesh对象
+		if (updateComplete == false) mesh->update(*regions[0]->chunks[x][y][z]);//更新它
+
+
+
+		meshRegion.push_back(std::move(mesh));//移动到meshRegion里
+
+
 
 		// 递增顺序：y 是最内层，然后是 z，最后是 x
-		y++;
-		if (y >= 32) {
-			y = 0;
-			z++;
-			if (z >= 32) {
-				z = 0;
-				x++;
-				if (x >= 32) {
-					x = 0;  // 完成一轮，重新开始
+		if (updateComplete == false) {
+			y++;
+			if (y >= 32) {
+				y = 0;
+				z++;
+				if (z >= 32) {
+					z = 0;
+					x++;
+					if (x >= 32) {
+						x = 0;  // 完成一轮，重新开始
+						updateComplete = true;
+					}
 				}
 			}
 		}
 
-		for (ChunkMesh* mesh : meshRegion) {
+		static double renderDistance = 256;
+
+		//遍历ChunkMesh然后调用它们的渲染函数
+		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
 			mesh->draw();
 		}
+
+		//将距离太远的ChunkMesh设置为不显示
+		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
+			
+			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
+			
+			double distance = sqrt(pow(posChunkCenter.x - mainPlayer.playerPos.x, 2) +
+				pow(posChunkCenter.y - mainPlayer.playerPos.y, 2) +
+				pow(posChunkCenter.z - mainPlayer.playerPos.z, 2));
+
+			//printf("distance:%lf\n", distance);
+
+			//玩家与区块中心的位置大于渲染距离
+			if ( distance > renderDistance) {
+				mesh->tooFar = true;
+			}
+
+		}
+
+		//将距离近的ChunkMesh设置为显示
+		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
+			
+			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
+
+			double distance = sqrt(pow(posChunkCenter.x - mainPlayer.playerPos.x, 2) +
+				pow(posChunkCenter.y - mainPlayer.playerPos.y, 2) +
+				pow(posChunkCenter.z - mainPlayer.playerPos.z, 2));
+
+
+
+			//玩家与区块中心位置小于渲染距离
+			if (distance < renderDistance) {
+				mesh->tooFar = false;
+			}
+		}
+
+
+
+		/*if (updateComplete) {
+			auto tooFar = std::find_if(meshRegion.begin(), meshRegion.end(),
+				[](const std::unique_ptr<ChunkMesh>& ptr) {
+					return (ptr->posChunk.x == 0 && ptr->posChunk.z == 0);
+				}
+			);
+			if (tooFar != meshRegion.end()) meshRegion.erase(tooFar);
+		}*/
+
+
 
 		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 

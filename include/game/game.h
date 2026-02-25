@@ -18,7 +18,7 @@ constexpr int regionZ = 32;
 
 
 
-std::map<int, std::map<int, std::map<int, Region*>>> regionMap;
+std::map<std::tuple<int,int,int>, Region*> regionMap;
 
 
 
@@ -189,7 +189,7 @@ public:
 		posRegion.y = y;
 		posRegion.z = z;
 
-		regionMap[x][y][z] = this;
+		regionMap[{x, y, z}] = this;
 
 		for (int i = 0; i < regionX; i++) {
 			for (int j = 0; j < regionY; j++) {
@@ -258,13 +258,13 @@ public:
 		iarchive(*this);
 
 		//将自己加入世界的regionMap
-		regionMap[posRegion.x][posRegion.y][posRegion.z] = this;
+		regionMap[{posRegion.x, posRegion.y, posRegion.z}] = this;
 	}
 
 	void unload() {
 
 		//将自己从worldMap中移除
-		regionMap[posRegion.x][posRegion.y][posRegion.z] = nullptr;
+		regionMap[{posRegion.x, posRegion.y, posRegion.z}] = nullptr;
 	}
 
 	unsigned int getVecs(glm::vec3* vecs, unsigned int IndexOffset,unsigned int maxCount) const {
@@ -376,7 +376,7 @@ Region* getRegionByBlock(long long x, long long y, long long z) {
 
 	int regZ = z / 512; if (z < 0) --regZ;
 
-	return regionMap[regX][regY][regZ];
+	return regionMap[{regX, regY, regZ}];
 }
 
 Chunk* getChunkByRegion(long long x, long long y, long long z,Region* region) {
@@ -463,9 +463,9 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 
 						//获取自身所在region的指针
 						Region* myRegion = regionMap
-							[std::floor((double)posChunk.x / regionX)] // 区块坐标轴向下取整
-							[std::floor((double)posChunk.y / regionY)]
-							[std::floor((double)posChunk.z / regionZ)];
+							[{std::floor((double)posChunk.x / regionX), // 区块坐标轴向下取整
+							std::floor((double)posChunk.y / regionY),
+							std::floor((double)posChunk.z / regionZ)}];
 
 						if (myRegion == nullptr) {
 							std::cout << "[ERROR] myRegion指针为nullptr，从regionMap中获取的指针不可用" << '\n';

@@ -66,6 +66,13 @@ private:
     std::vector<float> meshData; // 存储所有可见面的顶点数据
     int vertexCount = 0;
 
+
+public:
+
+    Pos3D posChunk{};//渲染的区块的位置，用于卸载区块
+
+    bool tooFar = false;
+
 public:
     ChunkMesh() {
         glGenVertexArrays(1, &vao);
@@ -96,6 +103,9 @@ public:
     }
 
     void update(Chunk& chunk) {
+
+        posChunk = chunk.posChunk;
+
         meshData.clear();
         vertexCount = 0;
 
@@ -151,6 +161,8 @@ public:
     }
 
     void draw() {
+
+        if (tooFar) return;//距离太远就返回
         if (vertexCount == 0) return;
 
         cubeShader->active();
