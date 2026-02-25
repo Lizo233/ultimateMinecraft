@@ -167,7 +167,14 @@ public:
 
         cubeShader->active();
         // 因为坐标已经在 update 里加过世界偏移了，model 矩阵设为单位矩阵即可
-        cubeShader->setUniMat4("model", glm::mat4(1.0f));
+        cubeShader->setMat4("model", glm::mat4(1.0f));
+
+        //雾的设置
+        cubeShader->setFloat("fogStart", 448.0f);
+        cubeShader->setFloat("fogEnd", 512.0f);
+        //雾的颜色和清屏颜色一样
+        cubeShader->setVec3("fogColor", glm::vec3(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime())));
+
 
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, vertexCount);

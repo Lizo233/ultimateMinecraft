@@ -49,7 +49,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	mainPlayer.setCamera(&camera);
 
-	cubeShader->setUniInt("texture0", 0);
+	cubeShader->setInt("texture0", 0);
 
 	//世界位置矩阵（模型矩阵）初始化
 	unsigned int amount = 15000;
@@ -116,7 +116,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		//绘画
 		cubeShader->active();
-		cubeShader->setUniMat4("model", glm::mat4(1.0));//设置位移、旋转、缩放矩阵
+		cubeShader->setMat4("model", glm::mat4(1.0));//设置位移、旋转、缩放矩阵
 
 		glBindVertexArray(vaoMap["cube"]);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -154,7 +154,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			}
 		}
 
-		static double renderDistance = 256;
+		static double renderDistance = 512;
 
 		//遍历ChunkMesh然后调用它们的渲染函数
 		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {

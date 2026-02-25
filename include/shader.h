@@ -73,12 +73,20 @@ public:
 
 	//各种uniform变量的设置
 
-	void setUniMat4(const std::string& name, const glm::mat4& matrix) const {
+	void setMat4(const std::string& name, const glm::mat4& matrix) const {
 		glUniformMatrix4fv(glGetUniformLocation(shaderProgramID, name.c_str()), 1, GL_FALSE, &matrix[0][0]);
 	}
 
-	void setUniInt(const std::string& name, const int value) const {
+	void setInt(const std::string& name, const int value) const {
 		glUniform1i(glGetUniformLocation(shaderProgramID, name.c_str()), value);
+	}
+
+	void setFloat(const std::string& name, float value) const {
+		glUniform1f(glGetUniformLocation(shaderProgramID, name.c_str()), value);
+	}
+
+	void setVec3(const std::string& name, const glm::vec3& value) const	{
+		glUniform3fv(glGetUniformLocation(shaderProgramID, name.c_str()), 1, &value[0]);
 	}
 
 
