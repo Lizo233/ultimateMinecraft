@@ -76,12 +76,12 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	LayeredNoise terraNoise(12345);
 
 
-	/*for (int x=0; x < 16; ++x) {
-		for (int z=0; z < 16; ++z) {
-			regions[0]->generate(terraNoise, x, z);
+	for (int x=0; x < 32; ++x) {
+		for (int z=0; z < 32; ++z) {
+			//regions[0]->generate(terraNoise, x, z);
 		}
-	}*/
-	regions[0]->generate(terraNoise, 1, 1);
+	}
+	regions[0]->generate(terraNoise);
 
 	//获取方块测试
 	std::cout << "getblock: " << getBlock(-1,-1,-1) << '\n';
@@ -90,16 +90,10 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//regions[0]->loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 
-	for (const auto region : regions) {
-		break;//暂时禁用
-		if (region)//仅当region!=nullptr时调用
-		vecIndex = region->getVecs(modelVecs, vecIndex, amount);
-	}
-
 
 
 	std::vector<ChunkMesh*> meshRegion;
-	meshDraw(meshRegion, regions[0]);
+	//meshDraw(meshRegion, regions[0]);
 	
 	//ChunkMesh mesh;
 	//regions[0]->chunks[1][16][1]->blocks[13][13][13] = 1;
@@ -127,6 +121,29 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		glBindVertexArray(vaoMap["cube"]);
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
+
+		static int x = 0;
+		static int y = 0;
+		static int z = 0;
+		
+		ChunkMesh* mesh = new ChunkMesh;
+		mesh->update(*regions[0]->chunks[x][y][z]);
+
+		meshRegion.push_back(mesh);
+
+		// 递增顺序：y 是最内层，然后是 z，最后是 x
+		y++;
+		if (y >= 32) {
+			y = 0;
+			z++;
+			if (z >= 32) {
+				z = 0;
+				x++;
+				if (x >= 32) {
+					x = 0;  // 完成一轮，重新开始
+				}
+			}
+		}
 
 		for (ChunkMesh* mesh : meshRegion) {
 			mesh->draw();
