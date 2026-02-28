@@ -67,7 +67,12 @@ public:
 	uint16_t blocks[16][16][16]{};//对应[x][y][z]位置的方块ID，默认初始化为0
 
 	//不会被存到文件中的数据
-	//int somevalues=123;
+	int somevalues=123;
+
+	//读写锁
+	std::shared_mutex mutexChunk;
+
+	bool isDirty = false;
 
 public:
 	
@@ -607,6 +612,8 @@ void dynamicGenerateChunk(const Player& player,const LayeredNoise noise) {
 					int chkX = (ax >> 4) & 31;
 					int chkZ = (az >> 4) & 31;
 
+
+
 					region->generate(noise, chkX, chkZ);
 
 				}
@@ -618,7 +625,7 @@ void dynamicGenerateChunk(const Player& player,const LayeredNoise noise) {
 					int regY = ay >> 9;
 					int regZ = az >> 9;
 
-					static auto ptrRegion = std::make_unique<Region>(regX, regY, regZ);
+					auto ptrRegion = std::make_unique<Region>(regX, regY, regZ);
 					
 					if (ptrRegion == nullptr) {
 						printf("爆炸了\n");
@@ -630,6 +637,7 @@ void dynamicGenerateChunk(const Player& player,const LayeredNoise noise) {
 
 					ptrRegion->generate(noise, chkX, chkZ);
 
+					regions.push_back(std::move(ptrRegion));
 				}
 
 			}

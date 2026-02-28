@@ -69,9 +69,6 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	//创建一个新的region
 	regions.push_back(std::make_unique<Region>(0, 0, 0));
-	regions.push_back(std::make_unique<Region>(-1, 0, 0));
-	regions.push_back(std::make_unique<Region>(0, 0, -1));
-	regions.push_back(std::make_unique<Region>(-1, 0, -1));
 
 	//auto a = regionMap[{0, 0, 0}];
 
@@ -85,18 +82,17 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		}
 	}
 	regions[0]->generate(terraNoise);
-	regions[1]->generate(terraNoise);
-	regions[2]->generate(terraNoise);
-	regions[3]->generate(terraNoise);
+	//regions[0]->chunks[0][0][0]->somevalues = 114514;
+
 
 	//获取方块测试
-	std::cout << "getblock: " << getBlock(-1,1,-1) << '\n';
+	std::cout << "getblock: " << getBlock(1,1,-1) << '\n';
 
 	//regions[0]->saveRegion("region.bin");
 	//regions[0]->loadRegion("region.bin");
 	//vecIndex = region.chunks[0][0][0]->getVecs(modelVecs, vecIndex);
 
-
+	
 
 	std::vector<std::unique_ptr<ChunkMesh>> meshRegion;
 	meshRegion.reserve(10000);
@@ -198,9 +194,10 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			}
 		}
 
+		std::cout << "getblock: " << getBlock(1, 1, -1) << '\n';
 		updateFPS();
 
-		printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
+		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 
 		//处理用户的输入
 		processInput(window);
