@@ -7,10 +7,11 @@
 #include <game/render.h>//渲染
 
 
+
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
-
+	
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
-
+	
 	//将本地化设置为UTF-8
 	std::locale::global(std::locale("en_US.UTF-8"));
 
@@ -64,11 +65,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	}
 
 	//游戏部分
-
 	unsigned int vecIndex = 0;
-
-	//区块初始化
-	initChunks();
 
 	//创建一个新的region
 	regions[0] = new Region(0, 0, 0);
@@ -93,14 +90,24 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 	std::vector<std::unique_ptr<ChunkMesh>> meshRegion;
+	meshRegion.reserve(10000);
+
 	//meshDraw(meshRegion, regions[0]);
 	
 	//ChunkMesh mesh;
 	//regions[0]->chunks[1][16][1]->blocks[13][13][13] = 1;
 	//mesh.update(*regions[0]->chunks[1][16][1]);
 
+	int x = 0;
+	int y = 0;
+	int z = 0;
+	
+	//渲染距离
+	double renderDistance = 1024;
+
 	logInfo("主循环开始");
 	while (!glfwWindowShouldClose(window)) {
+
 		//时间更新，deltaTime更新
 		timeUpdate();
 		//清屏
@@ -122,16 +129,16 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
-		static int x = 0;
-		static int y = 0;
-		static int z = 0;
-
 		static bool updateComplete = false;
-		
+
+
+		loadChunkMeshByDistance(meshRegion, 256, mainPlayer);
+
+
 		std::unique_ptr<ChunkMesh> mesh = std::make_unique<ChunkMesh>();//创建ChunkMesh对象
-		if (updateComplete == false) mesh->update(*regions[0]->chunks[x][y][z]);//更新它
-
-
+		if (updateComplete == false) {
+			mesh->update(*regions[0]->chunks[x][y][z]);
+		}//更新它
 
 		meshRegion.push_back(std::move(mesh));//移动到meshRegion里
 
@@ -139,14 +146,14 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		// 递增顺序：y 是最内层，然后是 z，最后是 x
 		if (updateComplete == false) {
-			y++;
+			++y;
 			if (y >= 32) {
 				y = 0;
 				z++;
-				if (z >= 32) {
+				if (z >= 4) {
 					z = 0;
 					x++;
-					if (x >= 32) {
+					if (x >= 4) {
 						x = 0;  // 完成一轮，重新开始
 						updateComplete = true;
 					}
@@ -154,23 +161,33 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			}
 		}
 
-		static double renderDistance = 512;
 
 		//遍历ChunkMesh然后调用它们的渲染函数
-		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
+		for (auto& mesh : meshRegion) {
 			mesh->draw();
 		}
 
+
+		//移除区块柱
+		if (false && updateComplete) {
+			auto tooFar = std::remove_if(meshRegion.begin(), meshRegion.end(),
+				[](const std::unique_ptr<ChunkMesh>& ptr) {
+					return (ptr->posChunk.x <= 1 && ptr->posChunk.z <= 1);
+				}
+			);
+			meshRegion.erase(tooFar,meshRegion.end());
+		}
+
+
 		//将距离太远的ChunkMesh设置为不显示
-		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
+		for (auto& mesh : meshRegion) {
 			
 			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
 			
+			//区块中心与玩家的距离
 			double distance = sqrt(pow(posChunkCenter.x - mainPlayer.playerPos.x, 2) +
 				pow(posChunkCenter.y - mainPlayer.playerPos.y, 2) +
 				pow(posChunkCenter.z - mainPlayer.playerPos.z, 2));
-
-			//printf("distance:%lf\n", distance);
 
 			//玩家与区块中心的位置大于渲染距离
 			if ( distance > renderDistance) {
@@ -179,16 +196,16 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		}
 
+
 		//将距离近的ChunkMesh设置为显示
 		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
 			
 			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
 
+			//区块中心与玩家的距离
 			double distance = sqrt(pow(posChunkCenter.x - mainPlayer.playerPos.x, 2) +
 				pow(posChunkCenter.y - mainPlayer.playerPos.y, 2) +
 				pow(posChunkCenter.z - mainPlayer.playerPos.z, 2));
-
-
 
 			//玩家与区块中心位置小于渲染距离
 			if (distance < renderDistance) {
@@ -196,18 +213,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			}
 		}
 
-
-
-		/*if (updateComplete) {
-			auto tooFar = std::find_if(meshRegion.begin(), meshRegion.end(),
-				[](const std::unique_ptr<ChunkMesh>& ptr) {
-					return (ptr->posChunk.x == 0 && ptr->posChunk.z == 0);
-				}
-			);
-			if (tooFar != meshRegion.end()) meshRegion.erase(tooFar);
-		}*/
-
-
+		updateFPS();
 
 		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 

@@ -287,12 +287,12 @@ public:
 			for (int z = 0; z < 32; ++z) {
 
 				//生成噪声图
-				double noise_cache[16][16];
+				double noise_cache[16][16]{};
 				for (int i = 0; i < 16; ++i) {
 					for (int j = 0; j < 16; ++j) {
 						noise_cache[i][j] = noise.mountainNoise(
-							i + x * 16 + posRegion.x * 512,
-							j + z * 16 + posRegion.z * 512
+							(double)i + x * 16 + posRegion.x * 512,
+							(double)j + z * 16 + posRegion.z * 512
 						);
 					}
 				}
@@ -312,12 +312,12 @@ public:
 	int generate(const LayeredNoise& noise,int x,int z) {
 
 		//生成噪声图
-		double noise_cache[16][16];
+		double noise_cache[16][16]{};
 		for (int i = 0; i < 16; ++i) {
 			for (int j = 0; j < 16; ++j) {
 				noise_cache[i][j] = noise.mountainNoise(
-					i + x * 16 + posRegion.x * 512,
-					j + z * 16 + posRegion.z * 512
+					(double)i + x * 16 + posRegion.x * 512,
+					(double)j + z * 16 + posRegion.z * 512
 				);
 			}
 		}
@@ -367,34 +367,34 @@ void renderChunks(int maxRenderAmount) {
 	//以玩家为中心↑↓←→寻路来确定？？？
 }
 
-Region* getRegionByBlock(long long x, long long y, long long z) {
+inline Region* getRegionByBlock(long long x, long long y, long long z) {
 	//1.获取这格方块对应的区域
 
-	int regX = x / 512; if (x < 0) --regX;// -1/512 = 0 ≠-1 所以对于x<0要-1
-
-	int regY = y / 512; if (y < 0) --regY;// -1/512 = 0 ≠-1 所以对于x<0要-1
-
-	int regZ = z / 512; if (z < 0) --regZ;
+	// 1. 快速计算 Region 坐标 (算术右移处理负数)
+	int regX = x >> 9;
+	int regY = y >> 9;
+	int regZ = z >> 9;
 
 	return regionMap[{regX, regY, regZ}];
 }
 
-Chunk* getChunkByRegion(long long x, long long y, long long z,Region* region) {
+inline Chunk* getChunkByRegion(long long x, long long y, long long z,Region* region) {
 
 	if (region == nullptr) return nullptr;//region不存在则返回nullptr
 
 	//2.获取这格方块在区域内对应的区块
-	int chkX = x % 512; chkX /= 16; if (x < 0) chkX += regionX - 1;
-
-	int chkY = y % 512; chkY /= 16; if (y < 0) chkY += regionY - 1;
-
-	int chkZ = z % 512; chkZ /= 16; if (z < 0) chkZ += regionZ - 1;
+	
+	// 3. 计算 Chunk 在 Region 内的索引 (0-31)
+	// (x >> 4) & 31 等价于 (x / 16) % 32，但快得多
+	int chkX = (x >> 4) & 31;
+	int chkY = (y >> 4) & 31;
+	int chkZ = (z >> 4) & 31;
 
 	return region->chunks[chkX][chkY][chkZ].get();
 }
 
 //通过xyz获取方块
-int getBlock(long long x, long long y, long long z) {
+inline int getBlock(long long x, long long y, long long z) {
 
 	//1.获取这格方块对应的区域
 	Region* region = getRegionByBlock(x, y, z);
@@ -407,13 +407,35 @@ int getBlock(long long x, long long y, long long z) {
 	if (chunk == nullptr) return 0;//区块未加载或未生成
 
 	//3. 获得这格方块的ID
-	int blkX = x % 16; if (x < 0) blkX += 15;
-	int blkY = y % 16; if (y < 0) blkY += 15;
-	int blkZ = z % 16; if (z < 0) blkZ += 15;
+	
+	// 4. 计算 Block 在 Chunk 内的索引 (0-15)
+	int blkX = x & 15; // 等价于 x % 16
+	int blkY = y & 15;
+	int blkZ = z & 15;
 
 	 return chunk->blocks[blkX][blkY][blkZ];
 
 }
+
+//通过xyz获得区块
+
+inline Chunk* getChunk(long long x, long long y, long long z) {
+
+	Region* region = getRegionByBlock(x, y, z);
+
+	if (region == nullptr) return nullptr;//region不存在则返回nullptr
+
+	//2.获取这格方块在区域内对应的区块
+
+	// 3. 计算 Chunk 在 Region 内的索引 (0-31)
+	// (x >> 4) & 31 等价于 (x / 16) % 32，但快得多
+	int chkX = (x >> 4) & 31;
+	int chkY = (y >> 4) & 31;
+	int chkZ = (z >> 4) & 31;
+
+	return region->chunks[chkX][chkY][chkZ].get();
+}
+
 
 unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned int maxCount) const {
 

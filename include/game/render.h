@@ -1,5 +1,4 @@
 #pragma once
-#include <vector>
 #include <game/game.h> // 包含 GLM 和 OpenGL 头文件
 
 class ChunkMesh {
@@ -9,67 +8,70 @@ private:
 
     // 顶脸 (Top) +Y: Y=0
     constexpr static float v_top[] = {
-        0.0f, 0.0f, -1.0f,  0.0f, 1.0f, 4.0f, // 后左
-        0.0f, 0.0f,  0.0f,  0.0f, 0.0f, 4.0f, // 前左
-        1.0f, 0.0f,  0.0f,  1.0f, 0.0f, 4.0f, // 前右
-        1.0f, 0.0f,  0.0f,  1.0f, 0.0f, 4.0f, // 前右
-        1.0f, 0.0f, -1.0f,  1.0f, 1.0f, 4.0f, // 后右
-        0.0f, 0.0f, -1.0f,  0.0f, 1.0f, 4.0f  // 后左
+        0.0f, 0.0f,  0.0f,  0.0f, 1.0f, 4.0f, // 后左
+        0.0f, 0.0f,  1.0f,  0.0f, 0.0f, 4.0f, // 前左
+        1.0f, 0.0f,  1.0f,  1.0f, 0.0f, 4.0f, // 前右
+        1.0f, 0.0f,  1.0f,  1.0f, 0.0f, 4.0f, // 前右
+        1.0f, 0.0f,  0.0f,  1.0f, 1.0f, 4.0f, // 后右
+        0.0f, 0.0f,  0.0f,  0.0f, 1.0f, 4.0f  // 后左
     };
     // 底脸 (Bottom) -Y: Y=-1
     constexpr static float v_bottom[] = {
-        0.0f, -1.0f,  0.0f,  0.0f, 1.0f, 5.0f, // 前左
-        0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 5.0f, // 后左
-        1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 5.0f, // 后右
-        1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 5.0f, // 后右
-        1.0f, -1.0f,  0.0f,  1.0f, 1.0f, 5.0f, // 前右
-        0.0f, -1.0f,  0.0f,  0.0f, 1.0f, 5.0f  // 前左
+        0.0f, -1.0f,  1.0f,  0.0f, 1.0f, 5.0f, // 前左
+        0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 5.0f, // 后左
+        1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 5.0f, // 后右
+        1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 5.0f, // 后右
+        1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 5.0f, // 前右
+        0.0f, -1.0f,  1.0f,  0.0f, 1.0f, 5.0f  // 前左
     };
-    // 前脸 (Front) +Z: Z=0
+    // 前脸 (Front) +Z: Z=1
     constexpr static float v_front[] = {
-        0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 2.0f, // 左下
-        1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 2.0f, // 右下
-        1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 2.0f, // 右上
-        1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 2.0f, // 右上
-        0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 2.0f, // 左上
-        0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 2.0f  // 左下
+        0.0f, -1.0f,  1.0f,  0.0f, 0.0f, 2.0f, // 左下
+        1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 2.0f, // 右下
+        1.0f,  0.0f,  1.0f,  1.0f, 1.0f, 2.0f, // 右上
+        1.0f,  0.0f,  1.0f,  1.0f, 1.0f, 2.0f, // 右上
+        0.0f,  0.0f,  1.0f,  0.0f, 1.0f, 2.0f, // 左上
+        0.0f, -1.0f,  1.0f,  0.0f, 0.0f, 2.0f  // 左下
     };
-    // 后脸 (Back) -Z: Z=-1
+    // 后脸 (Back) -Z: Z=0
     constexpr static float v_back[] = {
-        1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 3.0f, // 右下
-        0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 3.0f, // 左下
-        0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 3.0f, // 左上
-        0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 3.0f, // 左上
-        1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 3.0f, // 右上
-        1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 3.0f  // 右下
+        1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 3.0f, // 右下
+        0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 3.0f, // 左下
+        0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 3.0f, // 左上
+        0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 3.0f, // 左上
+        1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 3.0f, // 右上
+        1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 3.0f  // 右下
     };
     // 左脸 (Left) -X: X=0
     constexpr static float v_left[] = {
-        0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f, // 后下
-        0.0f, -1.0f,  0.0f,  1.0f, 0.0f, 1.0f, // 前下
-        0.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // 前上
-        0.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // 前上
-        0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // 后上
-        0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f  // 后下
+        0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // 后下
+        0.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f, // 前下
+        0.0f,  0.0f,  1.0f,  1.0f, 1.0f, 1.0f, // 前上
+        0.0f,  0.0f,  1.0f,  1.0f, 1.0f, 1.0f, // 前上
+        0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 1.0f, // 后上
+        0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f  // 后下
     };
     // 右脸 (Right) +X: X=1
     constexpr static float v_right[] = {
-        1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // 前下
-        1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 0.0f, // 后下
-        1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 0.0f, // 后上
-        1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 0.0f, // 后上
-        1.0f,  0.0f,  0.0f,  0.0f, 1.0f, 0.0f, // 前上
-        1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f  // 前下
+        1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 0.0f, // 前下
+        1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 0.0f, // 后下
+        1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // 后上
+        1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // 后上
+        1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // 前上
+        1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 0.0f  // 前下
     };
 
     unsigned int vao, vbo;
     std::vector<float> meshData; // 存储所有可见面的顶点数据
     int vertexCount = 0;
+    bool updated = false;
 
 
 public:
 
     Pos3D posChunk{};//渲染的区块的位置，用于卸载区块
+
+    Chunk* targetChunk{};
 
     bool tooFar = false;
 
@@ -104,6 +106,10 @@ public:
 
     void update(Chunk& chunk) {
 
+        targetChunk = &chunk;
+
+        if (updated) return;//如果已更新则之间返回
+
         posChunk = chunk.posChunk;
 
         meshData.clear();
@@ -124,9 +130,9 @@ public:
 
 
                     // 当前方块的世界坐标
-                    float wx = (float)(baseX + x);
-                    float wy = (float)(baseY + y);
-                    float wz = (float)(baseZ + z);
+                    long long wx = baseX + x;
+                    long long wy = baseY + y;
+                    long long wz = baseZ + z;
 
 
 
@@ -158,9 +164,11 @@ public:
         glEnableVertexAttribArray(2);
 
         glBindVertexArray(0);
+
+        updated = true;
     }
 
-    void draw() {
+    void draw() const {
 
         if (tooFar) return;//距离太远就返回
         if (vertexCount == 0) return;
@@ -182,20 +190,88 @@ public:
     }
 };
 
-//给出mesh
-void meshDraw(std::vector<ChunkMesh*>& mesh,Region* region) {
-    for (int i = 0; i < regionX; i++) {
-        for (int j = 0; j < regionY; j++) {
-            for (int k = 0; k < regionZ; k++) {
-                //逐个变mesh
-                if (region->chunks[i][j][k] == nullptr) continue;//跳过未加载区块
 
-                ChunkMesh* myMesh = new ChunkMesh;
-                myMesh->update(*region->chunks[i][j][k]);
+//区块处理队列
 
-                mesh.push_back(myMesh);
+//优先级，Chunk指针
+using queueChunkPair = std::pair<int, Chunk*>;
+//对比优先级函数
+auto queueChunkCmp = [](const queueChunkPair& a, const queueChunkPair& b) {
+    return a.first > b.first;
+    };
 
+std::priority_queue
+<queueChunkPair, std::vector<queueChunkPair>, decltype(queueChunkCmp)> chunkQueue(queueChunkCmp);
+
+void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks,
+    const int unloadDistance, const Player& player) {
+
+    static Pos3D pos{};
+
+    long long x = player.playerPos.x;
+    long long y = player.playerPos.y;
+    long long z = player.playerPos.z;
+
+    if (x == pos.x && y == pos.y && z == pos.z) {
+        return;//玩家未移动
+    }
+    if (x >> 4 == pos.x >> 4 && y >> 4 == pos.y >> 4 && z >> 4 == pos.z >> 4) {
+        return;//玩家移动但未离开区块
+    }
+
+    pos = { x,y,z };
+
+    static std::set<Chunk*> loadedChunk;
+
+    //meshChunks.clear();
+
+
+    //获取周围7x7x7的区块，作为最高加载优先级
+
+    const int loadRadius = 3;
+
+    for (int i = -loadRadius; i <= loadRadius; ++i) {
+        for (int j = -loadRadius; j <= loadRadius; ++j) {
+            for (int k = -loadRadius; k <= loadRadius; ++k) {
+                auto ptrChunk = getChunk(x + i * 16, y + j * 16, z + k * 16);
+
+                if (ptrChunk == nullptr) continue;//跳过未加载区块
+                //跳过处在meshChunks中的区块
+                if (loadedChunk.find(ptrChunk) != loadedChunk.end()) continue;
+
+                //将已加载的区块加入loadedChunk
+                loadedChunk.insert(ptrChunk);
+
+                std::unique_ptr<ChunkMesh> mesh = std::make_unique<ChunkMesh>();//创建ChunkMesh对象
+                mesh->update(*ptrChunk);//更新它
+
+                meshChunks.push_back(std::move(mesh));//移动到meshRegion里
             }
         }
     }
+
+
+    auto tooFar = std::remove_if(meshChunks.begin(), meshChunks.end(),
+        [unloadDistance,player](const std::unique_ptr<ChunkMesh>& ptr) {
+            
+            Pos3D posChunkCenter = { ptr->posChunk.x * 16 + 8 ,ptr->posChunk.y * 16 + 8 ,ptr->posChunk.z * 16 + 8 };
+
+            //区块中心与玩家的距离
+            double distance = sqrt(pow(posChunkCenter.x - player.playerPos.x, 2) +
+                pow(posChunkCenter.y - player.playerPos.y, 2) +
+                pow(posChunkCenter.z - player.playerPos.z, 2));
+
+            if (distance > unloadDistance) {
+                loadedChunk.erase(ptr->targetChunk);
+                return true;
+            }
+            return false;
+
+        }
+    );
+    meshChunks.erase(tooFar, meshChunks.end());
+
+
+    printf("meshVectorsize: %d\n", meshChunks.size());
+
 }

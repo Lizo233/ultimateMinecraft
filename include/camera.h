@@ -79,19 +79,21 @@ public:
 	//处理鼠标移动消息，画面会上下左右移动.
 	void ProcessMouseMovement(double xoffset, double yoffset, GLboolean constrainPitch = true)
 	{
+
 		xoffset *= mouseSensitivity;
 		yoffset *= mouseSensitivity;
 
 		mPlayer.mYaw += xoffset;
 		mPlayer.mPitch += yoffset;
 
+		constexpr static double maxPitch = 89.999;//防止精度不够
 		// 使得向上的角度不会超过90°，防止画面翻转
 		if (constrainPitch)
 		{
-			if (mPlayer.mPitch > 89.9)
-				mPlayer.mPitch = 89.9;
-			if (mPlayer.mPitch < -89.9)
-				mPlayer.mPitch = -89.9;
+			if (mPlayer.mPitch > maxPitch)
+				mPlayer.mPitch = maxPitch;
+			if (mPlayer.mPitch < -maxPitch)
+				mPlayer.mPitch = -maxPitch;
 		}
 
 		// 用新的欧拉角更新向量

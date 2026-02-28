@@ -16,6 +16,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <queue>
 
 //第三方库
 #include <glad/glad.h>
@@ -243,57 +244,57 @@ void vboInit() {
 
 		// 后脸 (Back Face) - 面对 -Z 方向
 		// 逆时针顺序: 右下 -> 左下 -> 左上, 左上 -> 右上 -> 右下
-		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 3.0f, // bottom-right
-		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 3.0f, // bottom-left
-		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 3.0f, // top-left
-		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 3.0f, // top-left
-		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 3.0f, // top-right
-		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 3.0f, // bottom-right
+		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 3.0f, // 右下
+		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 3.0f, // 左下
+		0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 3.0f, // 左上
+		0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 3.0f, // 左上
+		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 3.0f, // 右上
+		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 3.0f,  // 右下
 
 		// 前脸 (Front Face) - 面对 +Z 方向
 		// 逆时针顺序: 左下 -> 右下 -> 右上, 右上 -> 左上 -> 左下
-		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 2.0f, // bottom-left
-		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 2.0f, // bottom-right
-		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 2.0f, // top-right
-		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 2.0f, // top-right
-		0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 2.0f, // top-left
-		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 2.0f, // bottom-left
+		0.0f, -1.0f,  1.0f,  0.0f, 0.0f, 2.0f, // 左下
+		1.0f, -1.0f,  1.0f,  1.0f, 0.0f, 2.0f, // 右下
+		1.0f,  0.0f,  1.0f,  1.0f, 1.0f, 2.0f, // 右上
+		1.0f,  0.0f,  1.0f,  1.0f, 1.0f, 2.0f, // 右上
+		0.0f,  0.0f,  1.0f,  0.0f, 1.0f, 2.0f, // 左上
+		0.0f, -1.0f,  1.0f,  0.0f, 0.0f, 2.0f,  // 左下
 
 		// 左脸 (Left Face) - 面对 -X 方向
 		// 逆时针顺序: 后下 -> 前下 -> 前上, 前上 -> 后上 -> 后下
-		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f, // bottom-back
-		0.0f, -1.0f,  0.0f,  1.0f, 0.0f, 1.0f, // bottom-front
-		0.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-front
-		0.0f,  0.0f,  0.0f,  1.0f, 1.0f, 1.0f, // top-front
-		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 1.0f, // top-back
-		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 1.0f, // bottom-back
+		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // 后下
+		0.0f, -1.0f,  1.0f,  1.0f, 0.0f, 1.0f, // 前下
+		0.0f,  0.0f,  1.0f,  1.0f, 1.0f, 1.0f, // 前上
+		0.0f,  0.0f,  1.0f,  1.0f, 1.0f, 1.0f, // 前上
+		0.0f,  0.0f,  0.0f,  0.0f, 1.0f, 1.0f, // 后上
+		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 1.0f, // 后下
 
 		// 右脸 (Right Face) - 面对 +X 方向
 		// 逆时针顺序: 前下 -> 后下 -> 后上, 后上 -> 前上 -> 前下
-		1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-front
-		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 0.0f, // bottom-back
-		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 0.0f, // top-back
-		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 0.0f, // top-back
-		1.0f,  0.0f,  0.0f,  0.0f, 1.0f, 0.0f, // top-front
-		1.0f, -1.0f,  0.0f,  0.0f, 0.0f, 0.0f, // bottom-front
+		1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 0.0f, // 前下
+		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 0.0f, // 后下
+		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // 后上
+		1.0f,  0.0f,  0.0f,  1.0f, 1.0f, 0.0f, // 后上
+		1.0f,  0.0f,  1.0f,  0.0f, 1.0f, 0.0f, // 前上
+		1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 0.0f, // 前下
 
 		// 底脸 (Bottom Face) - 面对 -Y 方向
 		// 逆时针顺序: 前左 -> 后左 -> 后右, 后右 -> 前右 -> 前左
-		0.0f, -1.0f,  0.0f,  0.0f, 1.0f, 5.0f, // front-left
-		0.0f, -1.0f, -1.0f,  0.0f, 0.0f, 5.0f, // back-left
-		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 5.0f, // back-right
-		1.0f, -1.0f, -1.0f,  1.0f, 0.0f, 5.0f, // back-right
-		1.0f, -1.0f,  0.0f,  1.0f, 1.0f, 5.0f, // front-right
-		0.0f, -1.0f,  0.0f,  0.0f, 1.0f, 5.0f, // front-left
+		0.0f, -1.0f,  1.0f,  0.0f, 1.0f, 5.0f, // 前左
+		0.0f, -1.0f,  0.0f,  0.0f, 0.0f, 5.0f, // 后左
+		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 5.0f, // 后右
+		1.0f, -1.0f,  0.0f,  1.0f, 0.0f, 5.0f, // 后右
+		1.0f, -1.0f,  1.0f,  1.0f, 1.0f, 5.0f, // 前右
+		0.0f, -1.0f,  1.0f,  0.0f, 1.0f, 5.0f,  // 前左
 
 		// 顶脸 (Top Face) - 面对 +Y 方向
 		// 逆时针顺序: 后左 -> 前左 -> 前右, 前右 -> 后右 -> 后左
-		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 4.0f, // back-left
-		0.0f,  0.0f,  0.0f,  0.0f, 0.0f, 4.0f, // front-left
-		1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 4.0f, // front-right
-		1.0f,  0.0f,  0.0f,  1.0f, 0.0f, 4.0f, // front-right
-		1.0f,  0.0f, -1.0f,  1.0f, 1.0f, 4.0f, // back-right
-		0.0f,  0.0f, -1.0f,  0.0f, 1.0f, 4.0f, // back-left
+		0.0f, 0.0f,  0.0f,  0.0f, 1.0f, 4.0f, // 后左
+		0.0f, 0.0f,  1.0f,  0.0f, 0.0f, 4.0f, // 前左
+		1.0f, 0.0f,  1.0f,  1.0f, 0.0f, 4.0f, // 前右
+		1.0f, 0.0f,  1.0f,  1.0f, 0.0f, 4.0f, // 前右
+		1.0f, 0.0f,  0.0f,  1.0f, 1.0f, 4.0f, // 后右
+		0.0f, 0.0f,  0.0f,  0.0f, 1.0f, 4.0f  // 后左
 	};
 
 	glGenBuffers(1, &vboMap["cube"]);//创建VBO
@@ -479,4 +480,24 @@ std::string decompress_string(const std::string& compressed) {
 	output.resize(strm.total_out);
 	inflateEnd(&strm);
 	return output;
+}
+
+int updateFPS() {
+	static double lastTime = glfwGetTime(); // 记录上一次输出的时间
+	static int nbFrames = 0;               // 累积帧数
+
+	double currentTime = glfwGetTime();
+	nbFrames++;
+
+	// 如果距离上次输出已经超过 1.0 秒
+	if (currentTime - lastTime >= 1.0) {
+		// 计算 FPS: 帧数 / 时间间隔
+		printf("FPS: %d\n", nbFrames);
+
+		nbFrames = 0;
+		lastTime += 1.0;
+
+		return 1;
+	}
+	return 0;
 }
