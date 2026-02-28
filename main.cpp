@@ -129,6 +129,18 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		//glDrawArrays(GL_TRIANGLES, 0, 36);
 		glDrawArrays(GL_TRIANGLES, 0, 36);
 
+
+
+		// 因为坐标已经在 update 里加过世界偏移了，model 矩阵设为单位矩阵即可
+		cubeShader->setMat4("model", glm::mat4(1.0f));
+		//雾的设置
+		cubeShader->setFloat("fogStart", 448.0f);
+		cubeShader->setFloat("fogEnd", 512.0f);
+		//雾的颜色和清屏颜色一样
+		cubeShader->setVec3("fogColor", glm::vec3(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime())));
+
+
+
 		static bool updateComplete = false;
 
 
@@ -137,7 +149,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		std::unique_ptr<ChunkMesh> mesh = std::make_unique<ChunkMesh>();//创建ChunkMesh对象
 		if (updateComplete == false) {
-			mesh->update(*regions[0]->chunks[x][y][z]);
+			//mesh->update(*regions[0]->chunks[x][y][z]);
 		}//更新它
 
 		meshRegion.push_back(std::move(mesh));//移动到meshRegion里

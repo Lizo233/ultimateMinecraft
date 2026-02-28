@@ -64,10 +64,11 @@ private:
     unsigned int vao, vbo;
     std::vector<float> meshData; // 存储所有可见面的顶点数据
     int vertexCount = 0;
-    bool updated = false;
+
 
 
 public:
+    bool dataReady = false;//数据是否已经准备好了
 
     Pos3D posChunk{};//渲染的区块的位置，用于卸载区块
 
@@ -76,14 +77,12 @@ public:
     bool tooFar = false;
 
 public:
-    ChunkMesh() {
-        glGenVertexArrays(1, &vao);
-        glGenBuffers(1, &vbo);
-    }
+    ChunkMesh() = default;
 
     ~ChunkMesh() {
-        glDeleteVertexArrays(1, &vao);
-        glDeleteBuffers(1, &vbo);
+        // 只有在主线程销毁时才删除，或者确保销毁时有上下文
+        if (vao != 0) glDeleteVertexArrays(1, &vao);
+        if (vbo != 0) glDeleteBuffers(1, &vbo);
     }
 
     // 辅助函数：添加一个面的数据到 meshData，并处理世界坐标偏移
@@ -107,8 +106,6 @@ public:
     void update(Chunk& chunk) {
 
         targetChunk = &chunk;
-
-        if (updated) return;//如果已更新则之间返回
 
         posChunk = chunk.posChunk;
 
@@ -147,6 +144,14 @@ public:
             }
         }
 
+        dataReady = true;
+    }
+
+    void upload() {
+        //生成vao,vbo
+        glGenVertexArrays(1, &vao);
+        glGenBuffers(1, &vbo);
+
         // 上传到 GPU
         glBindVertexArray(vao);
         glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -164,8 +169,6 @@ public:
         glEnableVertexAttribArray(2);
 
         glBindVertexArray(0);
-
-        updated = true;
     }
 
     void draw() const {
@@ -173,15 +176,6 @@ public:
         if (tooFar) return;//距离太远就返回
         if (vertexCount == 0) return;
 
-        cubeShader->active();
-        // 因为坐标已经在 update 里加过世界偏移了，model 矩阵设为单位矩阵即可
-        cubeShader->setMat4("model", glm::mat4(1.0f));
-
-        //雾的设置
-        cubeShader->setFloat("fogStart", 448.0f);
-        cubeShader->setFloat("fogEnd", 512.0f);
-        //雾的颜色和清屏颜色一样
-        cubeShader->setVec3("fogColor", glm::vec3(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime())));
 
 
         glBindVertexArray(vao);
@@ -203,75 +197,81 @@ auto queueChunkCmp = [](const queueChunkPair& a, const queueChunkPair& b) {
 std::priority_queue
 <queueChunkPair, std::vector<queueChunkPair>, decltype(queueChunkCmp)> chunkQueue(queueChunkCmp);
 
+
+
 void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks,
     const int unloadDistance, const Player& player) {
 
-    static Pos3D pos{};
+    static Pos3D lastPos{};
+    static std::set<Chunk*> loadedChunk;
 
+    // 存储正在后台构建的 Mesh
+    static std::vector<std::unique_ptr<ChunkMesh>> buildingMeshes;
+
+    // --- A. 主线程检查：是否有 Mesh 构建完成了？ ---
+    for (auto it = buildingMeshes.begin(); it != buildingMeshes.end(); ) {
+        if ((*it)->dataReady) {
+            (*it)->upload(); // 在主线程执行 OpenGL 上传
+            meshChunks.push_back(std::move(*it));
+            it = buildingMeshes.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    // --- B. 玩家位移判断 ---
     long long x = player.playerPos.x;
     long long y = player.playerPos.y;
     long long z = player.playerPos.z;
 
-    if (x == pos.x && y == pos.y && z == pos.z) {
-        return;//玩家未移动
-    }
-    if (x >> 4 == pos.x >> 4 && y >> 4 == pos.y >> 4 && z >> 4 == pos.z >> 4) {
-        return;//玩家移动但未离开区块
-    }
+    bool moved = (x >> 4 != lastPos.x >> 4 || y >> 4 != lastPos.y >> 4 || z >> 4 != lastPos.z >> 4);
+    if (!moved) return;//没移动就直接返回
 
-    pos = { x,y,z };
+    lastPos = { x, y, z };
 
-    static std::set<Chunk*> loadedChunk;
+    // --- C. 提交新任务 ---
+    {
+        const int radius = 5;
 
-    //meshChunks.clear();
+        for (int i = -radius; i <= radius; ++i) {
+            for (int j = -radius; j <= radius; ++j) {
+                for (int k = -radius; k <= radius; ++k) {
+                    auto ptrChunk = getChunk(x + i * 16, y + j * 16, z + k * 16);
+                    if (!ptrChunk || loadedChunk.count(ptrChunk)) continue;
 
+                    loadedChunk.insert(ptrChunk);
 
-    //获取周围7x7x7的区块，作为最高加载优先级
+                    // 创建对象并扔进后台线程
+                    auto newMesh = std::make_unique<ChunkMesh>();
+                    ChunkMesh* rawPtr = newMesh.get();
+                    buildingMeshes.push_back(std::move(newMesh));
 
-    const int loadRadius = 3;
-
-    for (int i = -loadRadius; i <= loadRadius; ++i) {
-        for (int j = -loadRadius; j <= loadRadius; ++j) {
-            for (int k = -loadRadius; k <= loadRadius; ++k) {
-                auto ptrChunk = getChunk(x + i * 16, y + j * 16, z + k * 16);
-
-                if (ptrChunk == nullptr) continue;//跳过未加载区块
-                //跳过处在meshChunks中的区块
-                if (loadedChunk.find(ptrChunk) != loadedChunk.end()) continue;
-
-                //将已加载的区块加入loadedChunk
-                loadedChunk.insert(ptrChunk);
-
-                std::unique_ptr<ChunkMesh> mesh = std::make_unique<ChunkMesh>();//创建ChunkMesh对象
-                mesh->update(*ptrChunk);//更新它
-
-                meshChunks.push_back(std::move(mesh));//移动到meshRegion里
+                    // 异步构建数据
+                    std::thread([rawPtr, ptrChunk]() {
+                        rawPtr->update(*ptrChunk);
+                        }).detach();
+                    // 注意：生产环境建议改用线程池(Thread Pool) 替代 std::thread
+                }
             }
         }
     }
 
 
+
+    // --- D. 卸载逻辑 ---
     auto tooFar = std::remove_if(meshChunks.begin(), meshChunks.end(),
-        [unloadDistance,player](const std::unique_ptr<ChunkMesh>& ptr) {
-            
-            Pos3D posChunkCenter = { ptr->posChunk.x * 16 + 8 ,ptr->posChunk.y * 16 + 8 ,ptr->posChunk.z * 16 + 8 };
+        [unloadDistance, player](const std::unique_ptr<ChunkMesh>& m) {
+            double dx = (m->posChunk.x * 16 + 8) - player.playerPos.x;
+            double dy = (m->posChunk.y * 16 + 8) - player.playerPos.y;
+            double dz = (m->posChunk.z * 16 + 8) - player.playerPos.z;
 
-            //区块中心与玩家的距离
-            double distance = sqrt(pow(posChunkCenter.x - player.playerPos.x, 2) +
-                pow(posChunkCenter.y - player.playerPos.y, 2) +
-                pow(posChunkCenter.z - player.playerPos.z, 2));
-
-            if (distance > unloadDistance) {
-                loadedChunk.erase(ptr->targetChunk);
+            if ((dx * dx + dy * dy + dz * dz) > (unloadDistance * unloadDistance)) {
+                loadedChunk.erase(m->targetChunk);
                 return true;
             }
             return false;
-
         }
     );
     meshChunks.erase(tooFar, meshChunks.end());
-
-
-    printf("meshVectorsize: %d\n", meshChunks.size());
-
 }
