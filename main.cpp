@@ -9,12 +9,12 @@
 
 
 int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
-	
+
 	//fmt::print(fmt::bg(fmt::color::blue), "Hello World\n");
 	
 	//将本地化设置为UTF-8
 	std::locale::global(std::locale("en_US.UTF-8"));
-
+	
 	//日志系统
 	logSystemInit();
 
@@ -68,8 +68,14 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	unsigned int vecIndex = 0;
 
 	//创建一个新的region
-	regions[0] = new Region(0, 0, 0);
+	regions.push_back(std::make_unique<Region>(0, 0, 0));
+	regions.push_back(std::make_unique<Region>(-1, 0, 0));
+	regions.push_back(std::make_unique<Region>(0, 0, -1));
+	regions.push_back(std::make_unique<Region>(-1, 0, -1));
 
+	//auto a = regionMap[{0, 0, 0}];
+
+	//默认柏林噪声
 	LayeredNoise terraNoise(12345);
 
 
@@ -79,6 +85,9 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		}
 	}
 	regions[0]->generate(terraNoise);
+	regions[1]->generate(terraNoise);
+	regions[2]->generate(terraNoise);
+	regions[3]->generate(terraNoise);
 
 	//获取方块测试
 	std::cout << "getblock: " << getBlock(-1,1,-1) << '\n';
@@ -140,56 +149,20 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		cubeShader->setVec3("fogColor", glm::vec3(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime())));
 
 
-
-		static bool updateComplete = false;
-
-
-		loadChunkMeshByDistance(meshRegion, 256, mainPlayer);
-
-
-		std::unique_ptr<ChunkMesh> mesh = std::make_unique<ChunkMesh>();//创建ChunkMesh对象
-		if (updateComplete == false) {
-			//mesh->update(*regions[0]->chunks[x][y][z]);
-		}//更新它
-
-		meshRegion.push_back(std::move(mesh));//移动到meshRegion里
+		//动态生成区块
+		dynamicGenerateChunk(mainPlayer, terraNoise);
 
 
 
-		// 递增顺序：y 是最内层，然后是 z，最后是 x
-		if (updateComplete == false) {
-			++y;
-			if (y >= 32) {
-				y = 0;
-				z++;
-				if (z >= 4) {
-					z = 0;
-					x++;
-					if (x >= 4) {
-						x = 0;  // 完成一轮，重新开始
-						updateComplete = true;
-					}
-				}
-			}
-		}
+		loadChunkMeshByDistance(meshRegion, 1024, mainPlayer);
 
 
 		//遍历ChunkMesh然后调用它们的渲染函数
 		for (auto& mesh : meshRegion) {
 			mesh->draw();
 		}
-
-
-		//移除区块柱
-		if (false && updateComplete) {
-			auto tooFar = std::remove_if(meshRegion.begin(), meshRegion.end(),
-				[](const std::unique_ptr<ChunkMesh>& ptr) {
-					return (ptr->posChunk.x <= 1 && ptr->posChunk.z <= 1);
-				}
-			);
-			meshRegion.erase(tooFar,meshRegion.end());
-		}
-
+		
+		
 
 		//将距离太远的ChunkMesh设置为不显示
 		for (auto& mesh : meshRegion) {
@@ -227,7 +200,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		updateFPS();
 
-		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
+		printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 
 		//处理用户的输入
 		processInput(window);

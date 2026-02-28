@@ -209,6 +209,9 @@ GLFWwindow* OGLInitial() {
 
 	logInfo("OpenGL初始化完毕");
 
+	//将窗口在屏幕中的位置设为固定值
+	glfwSetWindowPos(mWindow, 480, 120);
+
 	return mWindow;
 }
 

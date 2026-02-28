@@ -1,5 +1,6 @@
 #pragma once
 #include <game/game.h> // 包含 GLM 和 OpenGL 头文件
+#include <game/thread_pool.h>//线程池
 
 class ChunkMesh {
 private:
@@ -198,80 +199,152 @@ std::priority_queue
 <queueChunkPair, std::vector<queueChunkPair>, decltype(queueChunkCmp)> chunkQueue(queueChunkCmp);
 
 
+struct ChunkOffset {
+    int dx, dy, dz;
+    float distSq; // 存储距离平方用于排序
+};
+
+// 全局或静态的偏移列表
+static std::vector<ChunkOffset> spiralOffsets;
+
+void initSpiralOffsets(int radius) {
+    spiralOffsets.clear();
+    for (int i = -radius; i <= radius; ++i) {
+        for (int j = -radius; j <= radius; ++j) {
+            for (int k = -radius; k <= radius; ++k) {
+                // 计算到原点的平方距离：d^2 = x^2 + y^2 + z^2
+                float dSq = static_cast<float>(i * i + j * j + k * k);
+                // 如果你想限制在球形区域内，可以加个判断
+                // if (dSq <= radius * radius) 
+                spiralOffsets.push_back({ i, j, k, dSq });
+            }
+        }
+    }
+
+    // 按距离从近到远排序
+    std::sort(spiralOffsets.begin(), spiralOffsets.end(), [](const ChunkOffset& a, const ChunkOffset& b) {
+        return a.distSq < b.distSq;
+        });
+}
+
+
 
 void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks,
     const int unloadDistance, const Player& player) {
 
-    static Pos3D lastPos{};
-    static std::set<Chunk*> loadedChunk;
 
-    // 存储正在后台构建的 Mesh
+    // --- 1. 静态资源初始化 ---
+    static ThreadPool pool(std::max(1u, std::thread::hardware_concurrency() - 1));
+    static std::vector<Pos3D> spiralOffsets; // 预计算的螺旋偏移列表
+    static std::unordered_set<Chunk*> loadedChunk;
     static std::vector<std::unique_ptr<ChunkMesh>> buildingMeshes;
 
-    // --- A. 主线程检查：是否有 Mesh 构建完成了？ ---
-    for (auto it = buildingMeshes.begin(); it != buildingMeshes.end(); ) {
-        if ((*it)->dataReady) {
-            (*it)->upload(); // 在主线程执行 OpenGL 上传
-            meshChunks.push_back(std::move(*it));
-            it = buildingMeshes.erase(it);
-        }
-        else {
-            ++it;
-        }
-    }
+    static Pos3D lastPlayerChunkPos{};
+    static int currentSpiralIndex = 0; // 当前分片扫描的进度索引
 
-    // --- B. 玩家位移判断 ---
-    long long x = player.playerPos.x;
-    long long y = player.playerPos.y;
-    long long z = player.playerPos.z;
+    Pos3D currentPlayerChunkPos = { (long long)player.playerPos.x >> 4, (long long)player.playerPos.y >> 4, (long long)player.playerPos.z >> 4 };
 
-    bool moved = (x >> 4 != lastPos.x >> 4 || y >> 4 != lastPos.y >> 4 || z >> 4 != lastPos.z >> 4);
-    if (!moved) return;//没移动就直接返回
 
-    lastPos = { x, y, z };
+    // --- 2. 预计算螺旋偏移量 (仅运行一次) ---
 
-    // --- C. 提交新任务 ---
-    {
-        const int radius = 5;
+    const int radius = 32; // 加载半径
 
+    if (spiralOffsets.empty()) {
         for (int i = -radius; i <= radius; ++i) {
             for (int j = -radius; j <= radius; ++j) {
                 for (int k = -radius; k <= radius; ++k) {
-                    auto ptrChunk = getChunk(x + i * 16, y + j * 16, z + k * 16);
-                    if (!ptrChunk || loadedChunk.count(ptrChunk)) continue;
-
-                    loadedChunk.insert(ptrChunk);
-
-                    // 创建对象并扔进后台线程
-                    auto newMesh = std::make_unique<ChunkMesh>();
-                    ChunkMesh* rawPtr = newMesh.get();
-                    buildingMeshes.push_back(std::move(newMesh));
-
-                    // 异步构建数据
-                    std::thread([rawPtr, ptrChunk]() {
-                        rawPtr->update(*ptrChunk);
-                        }).detach();
-                    // 注意：生产环境建议改用线程池(Thread Pool) 替代 std::thread
+                    spiralOffsets.push_back({ (long long)i, (long long)j, (long long)k });
                 }
             }
+        }
+        // 按距离平方从小到大排序
+        std::sort(spiralOffsets.begin(), spiralOffsets.end(), [](const Pos3D& a, const Pos3D& b) {
+            return (a.x * a.x + a.y * a.y * 0.1 + a.z * a.z) < (b.x * b.x + b.y * b.y * 0.1 + b.z * b.z);
+            //y轴优先加载
+            });
+    }
+
+
+    // --- 3. 收集并上传已完成的网格 (带配额限制) ---
+    const int MAX_UPLOADS_PER_FRAME = 3;
+    int uploadsDone = 0;
+    for (auto it = buildingMeshes.begin(); it != buildingMeshes.end(); ) {
+        if ((*it)->dataReady) {
+            if (uploadsDone < MAX_UPLOADS_PER_FRAME) {
+                (*it)->upload();
+                meshChunks.push_back(std::move(*it));
+                it = buildingMeshes.erase(it);
+                uploadsDone++;
+            }
+            else { ++it; }
+        }
+        else { ++it; }
+    }
+
+
+    // --- 4. 分片扫描逻辑 ---
+    // 如果玩家跨越了区块，重置扫描进度，从身边重新开始
+    if (currentPlayerChunkPos.x != lastPlayerChunkPos.x ||
+        currentPlayerChunkPos.y != lastPlayerChunkPos.y ||
+        currentPlayerChunkPos.z != lastPlayerChunkPos.z) {
+        currentSpiralIndex = 0;
+        lastPlayerChunkPos = currentPlayerChunkPos;
+    }
+
+    // 每帧只检查 1500 个位置，防止半径 16 (3.5万个位置) 导致的卡顿
+    const int CHECKS_PER_FRAME = 1500;
+    int checksDone = 0;
+
+    while (checksDone < CHECKS_PER_FRAME && currentSpiralIndex < spiralOffsets.size()) {
+        Pos3D offset = spiralOffsets[currentSpiralIndex++];
+        checksDone++;
+
+        // 计算目标区块的绝对世界坐标
+        long long targetX = (currentPlayerChunkPos.x + offset.x) << 4;
+        long long targetY = (currentPlayerChunkPos.y + offset.y) << 4;
+        long long targetZ = (currentPlayerChunkPos.z + offset.z) << 4;
+
+        auto ptrChunk = getChunk(targetX, targetY, targetZ);
+
+        //printf("building queue:%d\n",buildingMeshes.size());
+        
+        //ptrChunk存在，且不在loadedChunk中
+        if (ptrChunk && loadedChunk.find(ptrChunk) == loadedChunk.end()) {
+            // 提交新任务
+            loadedChunk.insert(ptrChunk);
+            auto newMesh = std::make_unique<ChunkMesh>();
+            ChunkMesh* rawPtr = newMesh.get();
+            buildingMeshes.push_back(std::move(newMesh));
+
+            pool.enqueue([rawPtr, ptrChunk]() {
+                rawPtr->update(*ptrChunk);
+                });
+
+            // 如果线程池队列太长，暂时停止提交，保护内存
+            //感觉之后把这些字面数值改成全局constexpr int比较好
+            if (buildingMeshes.size() > 1024) break;
         }
     }
 
 
+    // --- 5. 卸载逻辑 (每秒执行一次即可，没必要每帧执行) ---
+    static float unloadTimer = 0;
+    unloadTimer += 0.016f; // 假设 60fps
+    if (unloadTimer > 2.0f) {//每120帧刷新一次
+        unloadTimer = 0;
+        auto tooFar = std::remove_if(meshChunks.begin(), meshChunks.end(),
+            [unloadDistance, player](const std::unique_ptr<ChunkMesh>& m) {
 
-    // --- D. 卸载逻辑 ---
-    auto tooFar = std::remove_if(meshChunks.begin(), meshChunks.end(),
-        [unloadDistance, player](const std::unique_ptr<ChunkMesh>& m) {
-            double dx = (m->posChunk.x * 16 + 8) - player.playerPos.x;
-            double dy = (m->posChunk.y * 16 + 8) - player.playerPos.y;
-            double dz = (m->posChunk.z * 16 + 8) - player.playerPos.z;
-
-            if ((dx * dx + dy * dy + dz * dz) > (unloadDistance * unloadDistance)) {
-                loadedChunk.erase(m->targetChunk);
-                return true;
-            }
-            return false;
-        }
-    );
-    meshChunks.erase(tooFar, meshChunks.end());
+                //玩家距离区块中心的x,y,z
+                double dx = (m->posChunk.x * 16 + 8) - player.playerPos.x;
+                double dy = (m->posChunk.y * 16 + 8) - player.playerPos.y;
+                double dz = (m->posChunk.z * 16 + 8) - player.playerPos.z;
+                if ((dx * dx + dy * dy + dz * dz) > (double)unloadDistance * unloadDistance) {
+                    loadedChunk.erase(m->targetChunk);
+                    return true;
+                }
+                return false;
+            });
+        meshChunks.erase(tooFar, meshChunks.end());
+    }
 }

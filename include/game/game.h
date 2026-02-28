@@ -5,11 +5,12 @@
 #include <cereal/archives/binary.hpp>
 #include <cereal/types/memory.hpp>
 
+
+
 glm::vec3* modelVecs;
 
 //预声明Region类给Chunk类用
 class Region;
-
 
 //一个区域中含有多少格区块
 constexpr int regionX = 32;
@@ -332,7 +333,7 @@ public:
 	}
 };
 
-std::array<Region*, 9> regions;
+std::vector<std::unique_ptr<Region>> regions;
 
 
 void initChunks() {
@@ -574,3 +575,65 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 	return vecIndex;//返回最后未修改的下标
 }
 
+
+//动态生成区块
+void dynamicGenerateChunk(const Player& player,const LayeredNoise noise) {
+	
+	const int loadRadius = 1;
+
+	long long x = player.playerPos.x;
+	long long y = player.playerPos.y;
+	long long z = player.playerPos.z;
+
+	for (long long cx = -loadRadius; cx < loadRadius; ++cx) {
+		for (long long cy = -loadRadius; cy < loadRadius; ++cy) {
+			for (long long cz = -loadRadius; cz < loadRadius; ++cz) {
+
+				long long ax = x + cx * 16;
+				long long ay = y + cy * 16;
+				long long az = z + cz * 16;
+
+				if (ay < 0) continue;
+				//暂不生成x<0的区域和区块
+
+				//跳过已生成区块
+				if (getChunk(ax, ay, az)) continue;
+
+				Region* region = getRegionByBlock(ax, ay, az);
+
+				if (region) {
+					//区域存在，在区域内生成区块
+
+					int chkX = (ax >> 4) & 31;
+					int chkZ = (az >> 4) & 31;
+
+					region->generate(noise, chkX, chkZ);
+
+				}
+				else {
+					//区域不存在，创建区域和区块
+
+					// 1. 快速计算 Region 坐标 (算术右移处理负数)
+					int regX = ax >> 9;
+					int regY = ay >> 9;
+					int regZ = az >> 9;
+
+					static auto ptrRegion = std::make_unique<Region>(regX, regY, regZ);
+					
+					if (ptrRegion == nullptr) {
+						printf("爆炸了\n");
+						std::terminate();
+					}
+
+					int chkX = (ax >> 4) & 31;
+					int chkZ = (az >> 4) & 31;
+
+					ptrRegion->generate(noise, chkX, chkZ);
+
+				}
+
+			}
+		}
+	}
+
+}
