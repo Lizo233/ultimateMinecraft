@@ -81,7 +81,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			//regions[0]->generate(terraNoise, x, z);
 		}
 	}
-	regions[0]->generate(terraNoise);
+	//regions[0]->generate(terraNoise);
 	//regions[0]->chunks[0][0][0]->somevalues = 114514;
 
 
@@ -146,10 +146,10 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 		//动态生成区块
-		dynamicGenerateChunk(mainPlayer, terraNoise);
+		dynamicGenerateChunk(mainPlayer, terraNoise, 8);
 
 
-
+		//动态加载区块
 		loadChunkMeshByDistance(meshRegion, 1024, mainPlayer);
 
 
@@ -194,7 +194,33 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			}
 		}
 
-		std::cout << "getblock: " << getBlock(1, 1, -1) << '\n';
+		static int frames = 0;
+		++frames;
+		//每2000帧执行一次
+		if (frames == 2000) {
+			
+			std::vector<Pos3D> posRegions;
+
+			//获取各区域的位置
+			for (const auto& region : regions) {
+				posRegions.push_back(region->posRegion);
+			}
+
+			//当每个chunkMesh都离区域有一定距离时卸载区域
+
+			for (const auto& mesh : meshRegion) {
+				
+				for (auto& pos : posRegions) {
+					
+					
+
+				}
+
+			}
+
+		}
+
+		//std::cout << "getblock: " << getBlock(1, 1, -1) << '\n';
 		updateFPS();
 
 		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);

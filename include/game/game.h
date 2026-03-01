@@ -582,9 +582,9 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 
 
 //动态生成区块
-void dynamicGenerateChunk(const Player& player,const LayeredNoise noise) {
+void dynamicGenerateChunk(const Player& player,const LayeredNoise noise,const int loadRadius) {
 	
-	const int loadRadius = 1;
+	
 
 	long long x = player.playerPos.x;
 	long long y = player.playerPos.y;
