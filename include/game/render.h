@@ -105,15 +105,13 @@ public:
     }
 
     void update(Chunk& chunk) {
+        //std::shared_lock<std::shared_mutex> lock(chunk.mutexChunk); // 加上我们之前讨论的读锁
 
         targetChunk = &chunk;
-
         posChunk = chunk.posChunk;
-
         meshData.clear();
         vertexCount = 0;
 
-        // 基础世界坐标（注意：通常区块大小是 16x16x16）
         long long baseX = chunk.posChunk.x * 16;
         long long baseY = chunk.posChunk.y * 16;
         long long baseZ = chunk.posChunk.z * 16;
@@ -122,25 +120,60 @@ public:
             for (int y = 0; y < 16; ++y) {
                 for (int z = 0; z < 16; ++z) {
 
-
                     int blockType = chunk.blocks[x][y][z];
-                    if (blockType == 0) continue; // 空气跳过
+                    if (blockType == 0) continue;
 
-
-                    // 当前方块的世界坐标
                     long long wx = baseX + x;
                     long long wy = baseY + y;
                     long long wz = baseZ + z;
 
+                    // --- 右脸 (+X) ---
+                    if (x < 15) {
+                        if (chunk.blocks[x + 1][y][z] == 0) addFace(v_right, wx, wy, wz, blockType);
+                    }
+                    else {
+                        if (getBlock(wx + 1, wy, wz) == 0) addFace(v_right, wx, wy, wz, blockType);
+                    }
 
+                    // --- 左脸 (-X) ---
+                    if (x > 0) {
+                        if (chunk.blocks[x - 1][y][z] == 0) addFace(v_left, wx, wy, wz, blockType);
+                    }
+                    else {
+                        if (getBlock(wx - 1, wy, wz) == 0) addFace(v_left, wx, wy, wz, blockType);
+                    }
 
-                    // 检查 6 个方向的邻居（使用世界坐标查询）
-                    if (getBlock(wx + 1, wy, wz) == 0) addFace(v_right, wx, wy, wz, blockType);
-                    if (getBlock(wx - 1, wy, wz) == 0) addFace(v_left, wx, wy, wz, blockType);
-                    if (getBlock(wx, wy + 1, wz) == 0) addFace(v_top, wx, wy, wz, blockType);
-                    if (getBlock(wx, wy - 1, wz) == 0) addFace(v_bottom, wx, wy, wz, blockType);
-                    if (getBlock(wx, wy, wz + 1) == 0) addFace(v_front, wx, wy, wz, blockType);
-                    if (getBlock(wx, wy, wz - 1) == 0) addFace(v_back, wx, wy, wz, blockType);
+                    // --- 顶脸 (+Y) ---
+                    if (y < 15) {
+                        if (chunk.blocks[x][y + 1][z] == 0) addFace(v_top, wx, wy, wz, blockType);
+                    }
+                    else {
+                        if (getBlock(wx, wy + 1, wz) == 0) addFace(v_top, wx, wy, wz, blockType);
+                    }
+
+                    // --- 底脸 (-Y) ---
+                    if (y > 0) {
+                        if (chunk.blocks[x][y - 1][z] == 0) addFace(v_bottom, wx, wy, wz, blockType);
+                    }
+                    else {
+                        if (getBlock(wx, wy - 1, wz) == 0) addFace(v_bottom, wx, wy, wz, blockType);
+                    }
+
+                    // --- 前脸 (+Z) ---
+                    if (z < 15) {
+                        if (chunk.blocks[x][y][z + 1] == 0) addFace(v_front, wx, wy, wz, blockType);
+                    }
+                    else {
+                        if (getBlock(wx, wy, wz + 1) == 0) addFace(v_front, wx, wy, wz, blockType);
+                    }
+
+                    // --- 后脸 (-Z) ---
+                    if (z > 0) {
+                        if (chunk.blocks[x][y][z - 1] == 0) addFace(v_back, wx, wy, wz, blockType);
+                    }
+                    else {
+                        if (getBlock(wx, wy, wz - 1) == 0) addFace(v_back, wx, wy, wz, blockType);
+                    }
                 }
             }
         }
@@ -187,7 +220,7 @@ public:
 
 
 //区块处理队列
-
+/* 未使用
 //优先级，Chunk指针
 using queueChunkPair = std::pair<int, Chunk*>;
 //对比优先级函数
@@ -197,7 +230,7 @@ auto queueChunkCmp = [](const queueChunkPair& a, const queueChunkPair& b) {
 
 std::priority_queue
 <queueChunkPair, std::vector<queueChunkPair>, decltype(queueChunkCmp)> chunkQueue(queueChunkCmp);
-
+*/
 
 struct ChunkOffset {
     int dx, dy, dz;
@@ -283,7 +316,6 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
 
 
     // --- 4. 分片扫描逻辑 ---
-    // 如果玩家跨越了区块，重置扫描进度，从身边重新开始
     if (currentPlayerChunkPos.x != lastPlayerChunkPos.x ||
         currentPlayerChunkPos.y != lastPlayerChunkPos.y ||
         currentPlayerChunkPos.z != lastPlayerChunkPos.z) {
@@ -291,7 +323,6 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
         lastPlayerChunkPos = currentPlayerChunkPos;
     }
 
-    // 每帧只检查 1500 个位置，防止半径 16 (3.5万个位置) 导致的卡顿
     const int CHECKS_PER_FRAME = 1500;
     int checksDone = 0;
 
@@ -299,31 +330,50 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
         Pos3D offset = spiralOffsets[currentSpiralIndex++];
         checksDone++;
 
-        // 计算目标区块的绝对世界坐标
         long long targetX = (currentPlayerChunkPos.x + offset.x) << 4;
         long long targetY = (currentPlayerChunkPos.y + offset.y) << 4;
         long long targetZ = (currentPlayerChunkPos.z + offset.z) << 4;
 
+        // 1. 先拿中心区块，不存在直接跳过
         auto ptrChunk = getChunk(targetX, targetY, targetZ);
+        if (!ptrChunk) continue;
 
-        //printf("building queue:%d\n",buildingMeshes.size());
-        
-        //ptrChunk存在，且不在loadedChunk中
-        if (ptrChunk && loadedChunk.find(ptrChunk) == loadedChunk.end()) {
-            // 提交新任务
-            loadedChunk.insert(ptrChunk);
-            auto newMesh = std::make_unique<ChunkMesh>();
-            ChunkMesh* rawPtr = newMesh.get();
-            buildingMeshes.push_back(std::move(newMesh));
+        // 2. 如果已经加载过了，没必要检查邻居，直接跳过
+        if (loadedChunk.find(ptrChunk) != loadedChunk.end()) continue;
 
-            pool.enqueue([rawPtr, ptrChunk]() {
-                rawPtr->update(*ptrChunk);
-                });
-
-            // 如果线程池队列太长，暂时停止提交，保护内存
-            //感觉之后把这些字面数值改成全局constexpr int比较好
-            if (buildingMeshes.size() > 1024) break;
+        // 3. 检查邻居（为了网格生成的完整性）
+        // 注意：这里必须用 continue 而不是 break！
+        bool neighborsReady = true;
+        const int dirs[6][3] = { {16,0,0}, {-16,0,0}, {0,16,0}, {0,-16,0}, {0,0,16}, {0,0,-16} };
+        for (auto& d : dirs) {
+            if (getChunk(targetX + d[0], targetY + d[1], targetZ + d[2]) == nullptr) {
+                neighborsReady = false;
+                break; // 这里 break 只是跳出 6 方向循环
+            }
         }
+
+        if (!neighborsReady) {
+            // 如果邻居没好，我们暂时不能提交这个任务。
+            // 但为了防止 spiralIndex 跑得太快导致以后漏掉它，
+            // 我们可以稍微减小 index，或者让它留在原地（慎用，防止死循环）
+            // 简单处理：跳过，等待下一轮重置扫描。
+            continue;
+        }
+
+        // 4. 提交任务
+        loadedChunk.insert(ptrChunk);
+        auto newMesh = std::make_unique<ChunkMesh>();
+        ChunkMesh* rawPtr = newMesh.get();
+        buildingMeshes.push_back(std::move(newMesh));
+
+        pool.enqueue([rawPtr, ptrChunk]() {
+            // 再次提醒：这里面的 update 绝对不能含有 OpenGL 函数（如 glGenBuffers）
+            rawPtr->update(*ptrChunk);
+            });
+
+        // 限制每帧提交的新任务数，防止内存突增
+        // 1024 对 buildingMeshes 来说有点大，建议设为 128 或 256
+        if (buildingMeshes.size() > 1024) break;
     }
 
 
@@ -347,4 +397,101 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
             });
         meshChunks.erase(tooFar, meshChunks.end());
     }
+}
+
+
+
+//动态生成区块
+
+// 1. 全局/静态 变量，用于管理生成任务
+static std::mutex regionsMutex;
+static std::mutex pendingMutex;
+static std::unordered_set<long long> pendingGeneration; // 存储正在生成的区块唯一 ID
+
+// 辅助函数：将坐标压缩成一个 long long ID
+long long getChunkID(long long x, long long y, long long z) {
+	return ((x & 0xFFFFFF) << 40) | ((y & 0xFFFF) << 24) | (z & 0xFFFFFF);
+}
+
+void dynamicGenerateChunk(const Player& player, const LayeredNoise& noise, const int loadRadius) {
+	static ThreadPool pool(std::max(1u, std::thread::hardware_concurrency() - 1));
+	static std::vector<Pos3D> genOffsets;
+	static int currentGenIndex = 0;
+	static Pos3D lastGenPlayerPos{ -999, -999, -999 };
+
+	Pos3D playerChunkPos = { (long long)player.playerPos.x >> 4, (long long)player.playerPos.y >> 4, (long long)player.playerPos.z >> 4 };
+
+	// 2. 初始化螺旋偏移列表 (如果半径改变需要重新生成)
+	if (genOffsets.empty()) {
+		for (int i = -loadRadius; i <= loadRadius; ++i) {
+			for (int j = -loadRadius; j <= loadRadius; ++j) {
+				for (int k = -loadRadius; k <= loadRadius; ++k) {
+					genOffsets.push_back({ (long long)i, (long long)j, (long long)k });
+				}
+			}
+		}
+		std::sort(genOffsets.begin(), genOffsets.end(), [](const Pos3D& a, const Pos3D& b) {
+			return (a.x * a.x + a.y * a.y + a.z * a.z) < (b.x * b.x + b.y * b.y + b.z * b.z);
+			});
+	}
+
+	// 如果玩家跨越区块，重置扫描
+	if (playerChunkPos.x != lastGenPlayerPos.x || playerChunkPos.y != lastGenPlayerPos.y || playerChunkPos.z != lastGenPlayerPos.z) {
+		currentGenIndex = 0;
+		lastGenPlayerPos = playerChunkPos;
+	}
+
+	// 3. 分片扫描（每帧只检查 1000 个位置）
+	const int CHECKS_PER_FRAME = 1000;
+	int checksDone = 0;
+
+	while (checksDone < CHECKS_PER_FRAME && currentGenIndex < genOffsets.size()) {
+		Pos3D offset = genOffsets[currentGenIndex++];
+		checksDone++;
+
+		long long ax = (playerChunkPos.x + offset.x) << 4;
+		long long ay = (playerChunkPos.y + offset.y) << 4;
+		long long az = (playerChunkPos.z + offset.z) << 4;
+
+		if (ay < 0) continue;
+
+		// 检查是否已存在或正在生成
+		long long chunkID = getChunkID(ax >> 4, ay >> 4, az >> 4);
+
+		// 关键点：快速排除已加载的区块（getChunk 内部应是线程安全的读取）
+		if (getChunk(ax, ay, az)) continue;
+
+		{
+			std::lock_guard<std::mutex> lock(pendingMutex);
+			if (pendingGeneration.count(chunkID)) continue;
+			pendingGeneration.insert(chunkID); // 标记为正在处理
+		}
+
+		// 4. 确保 Region 存在 (主线程操作)
+		Region* region = getRegionByBlock(ax, ay, az);
+		if (!region) {
+			int regX = ax >> 9; int regY = ay >> 9; int regZ = az >> 9;
+			auto ptrRegion = std::make_unique<Region>(regX, regY, regZ);
+			region = ptrRegion.get();
+
+			std::lock_guard<std::mutex> lock(regionsMutex);
+			regions.push_back(std::move(ptrRegion));
+		}
+
+		// 5. 提交耗时的生成任务到线程池
+		int chkX = (ax >> 4) & 31;
+		int chkZ = (az >> 4) & 31;
+
+		pool.enqueue([region, noise, chkX, chkZ, chunkID]() {
+			// 这里是后台线程执行，最耗时的噪声计算就在这里
+			region->generate(noise, chkX, chkZ);
+
+			// 生成完成后，从待办列表中移除
+			std::lock_guard<std::mutex> lock(pendingMutex);
+			pendingGeneration.erase(chunkID);
+			});
+
+		// 保护：如果线程池排队太多，本帧停止提交
+		if (pendingGeneration.size() > 512) break;
+	}
 }

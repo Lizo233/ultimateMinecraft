@@ -486,6 +486,8 @@ std::string decompress_string(const std::string& compressed) {
 	return output;
 }
 
+int realFps = 60;
+
 int updateFPS() {
 	static double lastTime = glfwGetTime(); // 记录上一次输出的时间
 	static int nbFrames = 0;               // 累积帧数
@@ -497,6 +499,8 @@ int updateFPS() {
 	if (currentTime - lastTime >= 1.0) {
 		// 计算 FPS: 帧数 / 时间间隔
 		printf("FPS: %d\n", nbFrames);
+
+		realFps = nbFrames;
 
 		nbFrames = 0;
 		lastTime += 1.0;

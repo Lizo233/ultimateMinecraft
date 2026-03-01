@@ -50,19 +50,19 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	mainPlayer.setCamera(&camera);
 
-	cubeShader->setInt("texture0", 0);
+	
+	//将槽位0处的纹理绑定到shader中的 sampler2DArray texture0
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D_ARRAY, textureArray);
+	cubeShader->setInt("uTextureArray", 0);
+
+
 
 	//世界位置矩阵（模型矩阵）初始化
-	unsigned int amount = 15000;
+	unsigned int amount = 150;
 	modelVecs = new glm::vec3[amount];
 
-	//static glm::mat4 unitMat = glm::mat4(1.0);//这样可能会快点
-	//默认将草方块铺成一个10x10的平面，位于y=-1.0处
-	for (int i = 0; i < 10; i++) {
-		for (int j = 0; j < 10; j++) {
-			modelVecs[i * 10 + j] = glm::vec3(0,-5,0);
-		}
-	}
+
 
 	//游戏部分
 	unsigned int vecIndex = 0;
@@ -146,11 +146,12 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 		//动态生成区块
-		dynamicGenerateChunk(mainPlayer, terraNoise, 8);
+		dynamicGenerateChunk(mainPlayer, terraNoise, 16);
 
 
-		//动态加载区块
+		//动态加载区块Mesh
 		loadChunkMeshByDistance(meshRegion, 1024, mainPlayer);
+
 
 
 		//遍历ChunkMesh然后调用它们的渲染函数
