@@ -261,7 +261,7 @@ void initSpiralOffsets(int radius) {
 }
 
 
-
+//有问题，现在会报运行时错误
 void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks,
     const int unloadDistance, const Player& player) {
 
