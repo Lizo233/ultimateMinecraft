@@ -18,7 +18,7 @@ constexpr int regionY = 32;
 constexpr int regionZ = 32;
 
 
-
+std::shared_mutex mapMutex; // 读写锁
 std::map<std::tuple<int,int,int>, Region*> regionMap;
 
 
@@ -187,6 +187,15 @@ public:
 //区域类
 class Region {
 public:
+	//数据区
+
+	Pos3D posRegion;
+
+	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 512 x 512 = 134217728 格方块
+
+	std::mutex mtxChunks[regionX][regionY][regionZ];
+
+public:
 
 
 	//Region只使用WorldPos的 x,z 坐标，不使用 y 坐标
@@ -195,6 +204,7 @@ public:
 		posRegion.y = y;
 		posRegion.z = z;
 
+		std::unique_lock<std::shared_mutex> lock(mapMutex);
 		regionMap[{x, y, z}] = this;
 
 		for (int i = 0; i < regionX; i++) {
@@ -208,9 +218,6 @@ public:
 		}
 	}
 
-	Pos3D posRegion;
-
-	std::unique_ptr<Chunk> chunks[regionX][regionY][regionZ];//512 x 512 x 512 = 134217728 格方块
 
 	//序列化函数模板
 	template<class Archive>
@@ -264,12 +271,14 @@ public:
 		iarchive(*this);
 
 		//将自己加入世界的regionMap
+		std::unique_lock<std::shared_mutex> lock(mapMutex);
 		regionMap[{posRegion.x, posRegion.y, posRegion.z}] = this;
 	}
 
 	void unload() {
 
 		//将自己从worldMap中移除
+		std::unique_lock<std::shared_mutex> lock(mapMutex);
 		regionMap[{posRegion.x, posRegion.y, posRegion.z}] = nullptr;
 	}
 
@@ -328,12 +337,17 @@ public:
 			}
 		}
 		for (int y = 0; y < 32; ++y) {
+
+			if (!mtxChunks[x][y][z].try_lock()) continue;//无法获取锁就跳过
+
 			if (chunks[x][y][z] == nullptr) {
+				//这里有问题
 				auto tempChunk = std::make_unique<Chunk>(x + posRegion.x * regionX, y + posRegion.y * 32, z + posRegion.z * regionY);
 				tempChunk->generate(noise_cache);
 				chunks[x][y][z] = std::move(tempChunk);
 
 			}
+			mtxChunks[x][y][z].unlock();
 			//如果chunk已存在就不再次生成了
 		}
 
@@ -384,6 +398,7 @@ inline Region* getRegionByBlock(long long x, long long y, long long z) {
 	int regY = y >> 9;
 	int regZ = z >> 9;
 
+	std::unique_lock<std::shared_mutex> lock(mapMutex);
 	return regionMap[{regX, regY, regZ}];
 }
 
