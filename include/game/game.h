@@ -323,7 +323,9 @@ public:
 		return 0;//正常退出
 	}
 
-	//只生成单个区块的地形
+
+
+	//只生成单个区块柱的地形
 	int generate(const LayeredNoise& noise,int x,int z) {
 
 		//生成噪声图
@@ -338,16 +340,22 @@ public:
 		}
 		for (int y = 0; y < 32; ++y) {
 
-			if (!mtxChunks[x][y][z].try_lock()) continue;//无法获取锁就跳过
+			// 2. 使用 RAII 进行尝试锁定
+			// std::try_to_lock 告诉 lock 对象：尝试加锁，即便失败也立即返回，不要阻塞
+			std::unique_lock<std::mutex> lock(mtxChunks[x][y][z], std::try_to_lock);
+
+			// 3. 检查是否成功获取锁
+			if (!lock.owns_lock()) {
+				continue;//无法获取锁就跳过
+			}
 
 			if (chunks[x][y][z] == nullptr) {
-				//这里有问题
+				//这里没问题了
 				auto tempChunk = std::make_unique<Chunk>(x + posRegion.x * regionX, y + posRegion.y * 32, z + posRegion.z * regionY);
 				tempChunk->generate(noise_cache);
 				chunks[x][y][z] = std::move(tempChunk);
 
 			}
-			mtxChunks[x][y][z].unlock();
 			//如果chunk已存在就不再次生成了
 		}
 
