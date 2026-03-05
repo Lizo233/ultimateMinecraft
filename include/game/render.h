@@ -62,7 +62,7 @@ private:
         1.0f, -1.0f,  1.0f,  0.0f, 0.0f, 0.0f  // 前下
     };
 
-    unsigned int vao, vbo;
+    unsigned int vao{}, vbo{};
     std::vector<float> meshData; // 存储所有可见面的顶点数据
     int vertexCount = 0;
 
@@ -84,6 +84,9 @@ public:
         // 只有在主线程销毁时才删除，或者确保销毁时有上下文
         if (vao != 0) glDeleteVertexArrays(1, &vao);
         if (vbo != 0) glDeleteBuffers(1, &vbo);
+
+        if (targetChunk) targetChunk->isMeshLoaded = false;
+
     }
 
     // 辅助函数：添加一个面的数据到 meshData，并处理世界坐标偏移
@@ -105,10 +108,18 @@ public:
     }
 
     void update(Chunk& chunk) {
-        //std::shared_lock<std::shared_mutex> lock(chunk.mutexChunk); // 加上我们之前讨论的读锁
+
+        std::shared_lock<std::shared_mutex> lock(chunk.mutexChunk,std::try_to_lock); // 加上我们之前讨论的读锁
+
+        if (!lock.owns_lock()) return;//
 
         targetChunk = &chunk;
         posChunk = chunk.posChunk;
+
+        //将目标区块状态设为渲染
+        chunk.isMeshLoaded = true;
+
+        //清除之前的数据（更新）
         meshData.clear();
         vertexCount = 0;
 
@@ -396,6 +407,7 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
                 return false;
             });
         meshChunks.erase(tooFar, meshChunks.end());
+        printf("total chunkMeshes loaded:%lld\n", meshChunks.size());
     }
 }
 
@@ -406,18 +418,18 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
 // 1. 全局/静态 变量，用于管理生成任务
 static std::mutex regionsMutex;
 static std::mutex pendingMutex;
-static std::unordered_set<long long> pendingGeneration; // 存储正在生成的区块唯一 ID
+static std::unordered_set<Pos3D, Pos3DHash> pendingGeneration; // 存储正在生成的区块唯一 ID
 
 // 辅助函数：将坐标压缩成一个 long long ID
-long long getChunkID(long long x, long long y, long long z) {
-	return ((x & 0xFFFFFF) << 40) | ((y & 0xFFFF) << 24) | (z & 0xFFFFFF);
+Pos3D getChunkID(long long x, long long y, long long z) {
+    return { x,y,z };
 }
 
 void dynamicGenerateChunk(const Player& player, const LayeredNoise& noise, const int loadRadius) {
 	static ThreadPool pool(std::max(1u, std::thread::hardware_concurrency() - 1));
 	static std::vector<Pos3D> genOffsets;
 	static int currentGenIndex = 0;
-	static Pos3D lastGenPlayerPos{ -999, -999, -999 };
+    static Pos3D lastGenPlayerPos{ 0,0,0 };
 
 	Pos3D playerChunkPos = { (long long)player.playerPos.x >> 4, (long long)player.playerPos.y >> 4, (long long)player.playerPos.z >> 4 };
 
@@ -456,7 +468,7 @@ void dynamicGenerateChunk(const Player& player, const LayeredNoise& noise, const
 		if (ay < 0) continue;
 
 		// 检查是否已存在或正在生成
-		long long chunkID = getChunkID(ax >> 4, ay >> 4, az >> 4);
+		Pos3D chunkID = getChunkID(ax >> 4, ay >> 4, az >> 4);
 
 		// 关键点：快速排除已加载的区块（getChunk 内部应是线程安全的读取）
 		if (getChunk(ax, ay, az)) continue;

@@ -94,8 +94,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	
 
-	std::vector<std::unique_ptr<ChunkMesh>> meshRegion;
-	meshRegion.reserve(10000);
+	std::vector<std::unique_ptr<ChunkMesh>> meshChunks;
+	meshChunks.reserve(10000);
 
 	//meshDraw(meshRegion, regions[0]);
 	
@@ -150,19 +150,19 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 		//动态加载区块Mesh
-		loadChunkMeshByDistance(meshRegion, 1024, mainPlayer);
+		loadChunkMeshByDistance(meshChunks, 768, mainPlayer);
 
 
 
 		//遍历ChunkMesh然后调用它们的渲染函数
-		for (auto& mesh : meshRegion) {
+		for (auto& mesh : meshChunks) {
 			mesh->draw();
 		}
 		
 		
 
 		//将距离太远的ChunkMesh设置为不显示
-		for (auto& mesh : meshRegion) {
+		for (auto& mesh : meshChunks) {
 			
 			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
 			
@@ -180,7 +180,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 		//将距离近的ChunkMesh设置为显示
-		for (std::unique_ptr<ChunkMesh>& mesh : meshRegion) {
+		for (std::unique_ptr<ChunkMesh>& mesh : meshChunks) {
 			
 			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
 
@@ -195,10 +195,14 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 			}
 		}
 
+		//移除太远的ChunkMesh
+
+
+
 		static int frames = 0;
 		++frames;
-		//每2000帧执行一次
-		if (frames == 2000) {
+		//每240帧执行一次
+		if (frames == 240) {
 			
 			std::vector<Pos3D> posRegions;
 
@@ -207,17 +211,50 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 				posRegions.push_back(region->posRegion);
 			}
 
-			//当每个chunkMesh都离区域有一定距离时卸载区域
+			//离玩家2048格时卸载区域
 
-			for (const auto& mesh : meshRegion) {
-				
-				for (auto& pos : posRegions) {
-					
-					
+			const int unLoadDistance = 1024;
 
+			//内存溢出中，少话
+
+			size_t size = 0;
+			size_t release = 0;
+
+			for (const auto& region : regions) {
+				for (int x = 0; x < 32; ++x) {
+					for (int y = 0; y < 32; ++y) {
+						for (int z = 0; z < 32; ++z) {
+
+							auto& chunk = region->chunks[x][y][z];
+
+							if (chunk == nullptr) continue;//空则跳过
+
+							double dx = mainPlayer.playerPos.x - chunk->posChunk.x;
+							double dy = mainPlayer.playerPos.y - chunk->posChunk.y;
+							double dz = mainPlayer.playerPos.z - chunk->posChunk.z;
+
+							double distance = dx * dx + dy * dy + dz * dz;
+
+							++size;
+
+							//wtf怎么条件限制没用了？？？
+							//为什么它一次释放70000个区块？
+							//wtf???
+							//终于搞好了，艹
+							if (distance > unLoadDistance * unLoadDistance && chunk->isMeshLoaded == false) {
+								chunk.reset();
+								++release;
+							}
+
+						}
+					}
 				}
-
 			}
+
+			printf("total chunks loaded:%lld\n realeased:%lld\n", size, release);
+			
+
+			frames = 0;
 
 		}
 

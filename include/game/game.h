@@ -31,8 +31,26 @@ struct Pos3D {
 
 	template<class Archive>
 	void serialize(Archive& ar) { ar(x, y, z); }
+
+	// 必须实现相等判定，unordered_set 在碰撞时需要它
+	bool operator==(const Pos3D& other) const {
+		return x == other.x && y == other.y && z == other.z;
+	}
 };
 
+
+
+// 为 Pos3D 定义专门的哈希函数
+struct Pos3DHash {
+	size_t operator()(const Pos3D& p) const {
+
+		// 使用简单的质数混淆，或者 boost::hash_combine 的逻辑
+		size_t h = std::hash<long long>{}(p.x);
+		h ^= std::hash<long long>{}(p.y) + 0x9e3779b9 + (h << 6) + (h >> 2);
+		h ^= std::hash<long long>{}(p.z) + 0x9e3779b9 + (h << 6) + (h >> 2);
+		return h;
+	}
+};
 
 
 //区块类
@@ -48,7 +66,7 @@ class Chunk {
 public:
 	Chunk() = default;
 
-	Chunk(long long x, long long y,long long z) {
+	Chunk(long long x, long long y,long long z,Region* parentRegion) : region(parentRegion) {
 		posChunk.x = x;
 		posChunk.y = y;
 		posChunk.z = z;
@@ -62,17 +80,22 @@ public:
 	bool mIsVisible{};//可不可见（有没有被玩家看见）
 	bool mIsGenerated{};//是否被生成
 
-	Pos3D posChunk;//位于世界的哪个位置（区块坐标轴）
+	Pos3D posChunk{};//位于世界的哪个位置（区块坐标轴）
 
 	uint16_t blocks[16][16][16]{};//对应[x][y][z]位置的方块ID，默认初始化为0
 
 	//不会被存到文件中的数据
-	int somevalues=123;
 
 	//读写锁
 	std::shared_mutex mutexChunk;
 
 	bool isDirty = false;
+
+	//是否正在渲染
+	bool isMeshLoaded = false;
+
+	//父对象
+	const Region* region;
 
 public:
 	
@@ -313,7 +336,7 @@ public:
 				}
 				for (int y = 0; y < 32; ++y) {
 					if (chunks[x][y][z] == nullptr) {
-						chunks[x][y][z] = std::make_unique<Chunk>(x + posRegion.x * regionX, y + posRegion.y * regionY, z + posRegion.z * regionY);
+						chunks[x][y][z] = std::make_unique<Chunk>(x + posRegion.x * regionX, y + posRegion.y * regionY, z + posRegion.z * regionY, this);
 					}
 					chunks[x][y][z]->generate(noise_cache);
 				}
@@ -351,7 +374,7 @@ public:
 
 			if (chunks[x][y][z] == nullptr) {
 				//这里没问题了
-				auto tempChunk = std::make_unique<Chunk>(x + posRegion.x * regionX, y + posRegion.y * 32, z + posRegion.z * regionY);
+				auto tempChunk = std::make_unique<Chunk>(x + posRegion.x * regionX, y + posRegion.y * 32, z + posRegion.z * regionY, this);
 				tempChunk->generate(noise_cache);
 				chunks[x][y][z] = std::move(tempChunk);
 
