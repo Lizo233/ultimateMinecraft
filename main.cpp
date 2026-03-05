@@ -198,7 +198,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		//移除太远的ChunkMesh
 
 
-
+		/*
 		static int frames = 0;
 		++frames;
 		//每240帧执行一次
@@ -256,7 +256,9 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 			frames = 0;
 
-		}
+		}*/
+
+		dynamicUnloadChunk(1024);
 
 		//std::cout << "getblock: " << getBlock(1, 1, -1) << '\n';
 		updateFPS();

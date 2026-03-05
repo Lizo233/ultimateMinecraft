@@ -507,3 +507,54 @@ void dynamicGenerateChunk(const Player& player, const LayeredNoise& noise, const
 		if (pendingGeneration.size() > 512) break;
 	}
 }
+
+void dynamicUnloadChunk(const size_t unLoadDistance) {
+    // 1. 声明静态线程池，确保只初始化一次
+    static ThreadPool pool(std::max(1u, std::thread::hardware_concurrency() / 4)); // 卸载不需要太多线程，占 1/4 即可
+    static int frames = 0;
+
+    if (++frames < 240) return;
+    frames = 0;
+
+    // 获取玩家当前坐标快照（Pos3D）
+    glm::vec3 pPos = mainPlayer.playerPos;
+    const long long unLoadDistSq = unLoadDistance * unLoadDistance;
+
+    // 2. 获取区域锁，防止主线程此时在 regions.push_back 导致崩溃
+    std::lock_guard<std::mutex> regLock(regionsMutex);
+
+    for (auto& region : regions) {
+        Region* rawRegion = region.get();
+
+        // 3. 将每个 Region 的扫描任务丢进线程池
+        pool.enqueue([rawRegion, pPos, unLoadDistSq]() {
+
+            for (int x = 0; x < 32; ++x) {
+                for (int y = 0; y < 32; ++y) {
+                    for (int z = 0; z < 32; ++z) {
+
+                        // 4. RAII 锁定区块插槽
+                        // 使用 try_lock 避免因为某个区块正在 build 导致卸载线程卡死
+                        std::unique_lock<std::mutex> lock(rawRegion->mtxChunks[x][y][z], std::try_to_lock);
+                        if (!lock.owns_lock()) continue;
+
+                        auto& chunk = rawRegion->chunks[x][y][z];
+                        if (chunk == nullptr) continue;
+
+                        // 核心修正：距离计算
+                        // chunk->posChunk 是区块单位，需要 * 16 转为世界坐标
+                        long long dx = pPos.x - (chunk->posChunk.x * 16);
+                        long long dy = pPos.y - (chunk->posChunk.y * 16);
+                        long long dz = pPos.z - (chunk->posChunk.z * 16);
+                        long long distSq = dx * dx + dy * dy + dz * dz;
+
+                        // 满足条件则释放
+                        if (distSq > unLoadDistSq && !chunk->isMeshLoaded) {
+                            chunk.reset(); // 释放内存
+                        }
+                    }
+                }
+            }
+            });
+    }
+}
