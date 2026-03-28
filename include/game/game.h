@@ -17,9 +17,8 @@ constexpr int regionX = 32;
 constexpr int regionY = 32;
 constexpr int regionZ = 32;
 
-
 std::shared_mutex mapMutex; // 读写锁
-std::map<std::tuple<int,int,int>, Region*> regionMap;
+std::map<std::tuple<int,int,int>, std::shared_ptr<Region>> regionMap;
 
 
 
@@ -218,6 +217,8 @@ public:
 
 	std::mutex mtxChunks[regionX][regionY][regionZ];
 
+	std::shared_mutex regionReleaseMutex; // 读写锁
+
 public:
 
 
@@ -227,8 +228,8 @@ public:
 		posRegion.y = y;
 		posRegion.z = z;
 
-		std::unique_lock<std::shared_mutex> lock(mapMutex);
-		regionMap[{x, y, z}] = this;
+		//std::unique_lock<std::shared_mutex> lock(mapMutex);
+		//regionMap[{x, y, z}] = this;
 
 		for (int i = 0; i < regionX; i++) {
 			for (int j = 0; j < regionY; j++) {
@@ -241,6 +242,14 @@ public:
 		}
 	}
 
+	~Region() {
+		
+		//std::unique_lock<std::shared_mutex> lock(mapMutex);
+		//regionMap[{posRegion.x, posRegion.y, posRegion.z}] = nullptr;
+
+		printf("调用了Region的析构\n");
+
+	}
 
 	//序列化函数模板
 	template<class Archive>
@@ -275,6 +284,9 @@ public:
 	}
 
 	void loadRegion(const std::string& path) {
+
+		std::terminate();//要处理regionMap问题
+		
 		// 1. 读取压缩文件
 		std::ifstream file(path, std::ios::binary);
 
@@ -294,8 +306,8 @@ public:
 		iarchive(*this);
 
 		//将自己加入世界的regionMap
-		std::unique_lock<std::shared_mutex> lock(mapMutex);
-		regionMap[{posRegion.x, posRegion.y, posRegion.z}] = this;
+		//std::unique_lock<std::shared_mutex> lock(mapMutex);
+		//regionMap[{posRegion.x, posRegion.y, posRegion.z}] = std::make_shared<Region>(this);
 	}
 
 	void unload() {
@@ -386,7 +398,8 @@ public:
 	}
 };
 
-std::vector<std::unique_ptr<Region>> regions;
+
+//std::vector<std::shared_ptr<Region>> regions;
 
 
 void initChunks() {
@@ -421,7 +434,7 @@ void renderChunks(int maxRenderAmount) {
 	//以玩家为中心↑↓←→寻路来确定？？？
 }
 
-inline Region* getRegionByBlock(long long x, long long y, long long z) {
+inline std::shared_ptr<Region> getRegionByBlock(long long x, long long y, long long z) {
 	//1.获取这格方块对应的区域
 
 	// 1. 快速计算 Region 坐标 (算术右移处理负数)
@@ -433,7 +446,7 @@ inline Region* getRegionByBlock(long long x, long long y, long long z) {
 	return regionMap[{regX, regY, regZ}];
 }
 
-inline Chunk* getChunkByRegion(long long x, long long y, long long z,Region* region) {
+inline Chunk* getChunkByRegion(long long x, long long y, long long z, std::shared_ptr<Region> region) {
 
 	if (region == nullptr) return nullptr;//region不存在则返回nullptr
 
@@ -452,7 +465,7 @@ inline Chunk* getChunkByRegion(long long x, long long y, long long z,Region* reg
 inline int getBlock(long long x, long long y, long long z) {
 
 	//1.获取这格方块对应的区域
-	Region* region = getRegionByBlock(x, y, z);
+	auto region = getRegionByBlock(x, y, z);
 
 	if (region == nullptr) return 0;//区域未加载或未生成
 
@@ -476,7 +489,7 @@ inline int getBlock(long long x, long long y, long long z) {
 
 inline Chunk* getChunk(long long x, long long y, long long z) {
 
-	Region* region = getRegionByBlock(x, y, z);
+	auto region = getRegionByBlock(x, y, z);
 
 	if (region == nullptr) return nullptr;//region不存在则返回nullptr
 
@@ -491,8 +504,8 @@ inline Chunk* getChunk(long long x, long long y, long long z) {
 	return region->chunks[chkX][chkY][chkZ].get();
 }
 
-
-unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned int maxCount) const {
+//not using
+/*unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned int maxCount) const {
 
 	//if (mIsVisible == 0) return IndexOffset;//玩家看不见就直接不渲染
 	//if (mIsLoaded == 0) return IndexOffset;//没加载也不渲染（没加载就应该不会调用这个函数？）
@@ -539,7 +552,7 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 						//检测该方块与邻居区块接触的方块是否为空气
 
 						//获取自身所在region的指针
-						Region* myRegion = regionMap
+						auto& myRegion = regionMap
 							[{std::floor((double)posChunk.x / regionX), // 区块坐标轴向下取整
 							std::floor((double)posChunk.y / regionY),
 							std::floor((double)posChunk.z / regionZ)}];
@@ -627,6 +640,36 @@ unsigned int Chunk::getVecs(glm::vec3* vecs, unsigned int IndexOffset, unsigned 
 	//std::cout << "总判断量：" << count << '\n';
 
 	return vecIndex;//返回最后未修改的下标
+}*/
+
+void dynamicUnloadRegion(const long long unloadDistance,const Player& player) {
+
+	long long unloadDistanceSquare = unloadDistance * unloadDistance;
+	
+	//唉，这个卸载区块的逻辑太难做了，暂且搁置吧
+	//反正就目前来讲把占大头的区块卸载之后，内存占用还是可行的
+
+	for (auto [index, region] : regionMap) {
+		
+		if (region == nullptr) continue;//不存在就跳过
+
+		long long dx = region->posRegion.x * 512 - player.playerPos.x;
+		long long dy = region->posRegion.y * 512 - player.playerPos.y;
+		long long dz = region->posRegion.z * 512 - player.playerPos.z;
+
+		long long distanceSquare = dx * dx + dy * dy + dz * dz;
+
+		if (distanceSquare < unloadDistanceSquare) continue;//距离不够远就跳过
+
+		std::unique_lock<std::shared_mutex> lock(mapMutex, std::try_to_lock);
+		if (!lock.owns_lock()) continue;//不拥有锁就跳过
+
+		regionMap[index] = nullptr;
+		regionMap.erase(index);
+		break;//迭代器失效
+
+	}
+
+	//regions.erase(tooFarRegion, regions.end());
+
 }
-
-

@@ -68,7 +68,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	unsigned int vecIndex = 0;
 
 	//创建一个新的region
-	regions.push_back(std::make_unique<Region>(0, 0, 0));
+	//regions.push_back(std::make_unique<Region>(0, 0, 0));
 
 	//auto a = regionMap[{0, 0, 0}];
 
@@ -110,7 +110,13 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//渲染距离
 	double renderDistance = 1024;
 
+	constexpr int chunkUnloadDistance = 1024;
+
+
+
 	logInfo("主循环开始");
+
+	//主循环
 	while (!glfwWindowShouldClose(window)) {
 
 		//时间更新，deltaTime更新
@@ -139,8 +145,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		// 因为坐标已经在 update 里加过世界偏移了，model 矩阵设为单位矩阵即可
 		cubeShader->setMat4("model", glm::mat4(1.0f));
 		//雾的设置
-		cubeShader->setFloat("fogStart", 448.0f);
-		cubeShader->setFloat("fogEnd", 512.0f);
+		cubeShader->setFloat("fogStart", 256.0f);
+		cubeShader->setFloat("fogEnd", 288.0f);
 		//雾的颜色和清屏颜色一样
 		cubeShader->setVec3("fogColor", glm::vec3(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime())));
 
@@ -150,17 +156,21 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 		//动态加载区块Mesh
-		loadChunkMeshByDistance(meshChunks, 768, mainPlayer);
+		loadChunkMeshByDistance(meshChunks, 512, mainPlayer);
 
 
 
 		//遍历ChunkMesh然后调用它们的渲染函数
 		for (auto& mesh : meshChunks) {
 			mesh->draw();
+			//准备做区块合并
+			//可以用一个drawChunkMesh()函数来做绘制
+			//用mergeChunkMesh做合并
 		}
 		
-		
 
+		//暂不设置ChunkMesh::tooFar
+		/*
 		//将距离太远的ChunkMesh设置为不显示
 		for (auto& mesh : meshChunks) {
 			
@@ -178,7 +188,6 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 		}
 
-
 		//将距离近的ChunkMesh设置为显示
 		for (std::unique_ptr<ChunkMesh>& mesh : meshChunks) {
 			
@@ -194,74 +203,22 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 				mesh->tooFar = false;
 			}
 		}
+		*/
 
-		//移除太远的ChunkMesh
+
+		//移除太远的Chunk
+		dynamicUnloadChunk(chunkUnloadDistance);
+		
+
+		//移除没有Chunk的Region
+		dynamicUnloadRegion(chunkUnloadDistance * 2, mainPlayer);//乘以2是为了保障一定没有Chunk在Region内
 
 
-		/*
-		static int frames = 0;
-		++frames;
-		//每240帧执行一次
-		if (frames == 240) {
-			
-			std::vector<Pos3D> posRegions;
+		//更新FPS
+		if (updateFPS()) {
+			printf("总Region数量:%lld\n",regionMap.size());
+		}
 
-			//获取各区域的位置
-			for (const auto& region : regions) {
-				posRegions.push_back(region->posRegion);
-			}
-
-			//离玩家2048格时卸载区域
-
-			const int unLoadDistance = 1024;
-
-			//内存溢出中，少话
-
-			size_t size = 0;
-			size_t release = 0;
-
-			for (const auto& region : regions) {
-				for (int x = 0; x < 32; ++x) {
-					for (int y = 0; y < 32; ++y) {
-						for (int z = 0; z < 32; ++z) {
-
-							auto& chunk = region->chunks[x][y][z];
-
-							if (chunk == nullptr) continue;//空则跳过
-
-							double dx = mainPlayer.playerPos.x - chunk->posChunk.x;
-							double dy = mainPlayer.playerPos.y - chunk->posChunk.y;
-							double dz = mainPlayer.playerPos.z - chunk->posChunk.z;
-
-							double distance = dx * dx + dy * dy + dz * dz;
-
-							++size;
-
-							//wtf怎么条件限制没用了？？？
-							//为什么它一次释放70000个区块？
-							//wtf???
-							//终于搞好了，艹
-							if (distance > unLoadDistance * unLoadDistance && chunk->isMeshLoaded == false) {
-								chunk.reset();
-								++release;
-							}
-
-						}
-					}
-				}
-			}
-
-			printf("total chunks loaded:%lld\n realeased:%lld\n", size, release);
-			
-
-			frames = 0;
-
-		}*/
-
-		dynamicUnloadChunk(1024);
-
-		//std::cout << "getblock: " << getBlock(1, 1, -1) << '\n';
-		updateFPS();
 
 		//printf("x:%f y:%f z:%f \n",mainPlayer.playerPos.x, mainPlayer.playerPos.y, mainPlayer.playerPos.z);
 

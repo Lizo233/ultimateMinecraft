@@ -85,6 +85,7 @@ public:
         if (vao != 0) glDeleteVertexArrays(1, &vao);
         if (vbo != 0) glDeleteBuffers(1, &vbo);
 
+        //这里移动过快会报错，以后修
         if (targetChunk) targetChunk->isMeshLoaded = false;
 
     }
@@ -272,7 +273,6 @@ void initSpiralOffsets(int radius) {
 }
 
 
-//有问题，现在会报运行时错误
 void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks,
     const int unloadDistance, const Player& player) {
 
@@ -303,7 +303,7 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
         }
         // 按距离平方从小到大排序
         std::sort(spiralOffsets.begin(), spiralOffsets.end(), [](const Pos3D& a, const Pos3D& b) {
-            return (a.x * a.x + a.y * a.y * 0.1 + a.z * a.z) < (b.x * b.x + b.y * b.y * 0.1 + b.z * b.z);
+            return (a.x * a.x + a.y * a.y * 0.01 + a.z * a.z) < (b.x * b.x + b.y * b.y * 0.01 + b.z * b.z);
             //y轴优先加载
             });
     }
@@ -345,6 +345,10 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
         long long targetY = (currentPlayerChunkPos.y + offset.y) << 4;
         long long targetZ = (currentPlayerChunkPos.z + offset.z) << 4;
 
+        //获得目标区块
+        auto ptrRegion = getRegionByBlock(targetX, targetY, targetZ);
+
+
         // 1. 先拿中心区块，不存在直接跳过
         auto ptrChunk = getChunk(targetX, targetY, targetZ);
         if (!ptrChunk) continue;
@@ -377,21 +381,34 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
         ChunkMesh* rawPtr = newMesh.get();
         buildingMeshes.push_back(std::move(newMesh));
 
-        pool.enqueue([rawPtr, ptrChunk]() {
+
+        pool.enqueue([rawPtr, ptrChunk, ptrRegion]() {
+
+            //保证Region类本身不被释放
+            //此时仅修改Region内的区块而不修改Region类本身
+            std::shared_lock<std::shared_mutex> lock(ptrRegion->regionReleaseMutex, std::try_to_lock);
+            if (!lock.owns_lock()) {
+                // 未获得锁，直接返回
+                //std::cout << "Write lock failed, return.\n";
+                return;
+            }
+
             // 再次提醒：这里面的 update 绝对不能含有 OpenGL 函数（如 glGenBuffers）
             rawPtr->update(*ptrChunk);
             });
 
         // 限制每帧提交的新任务数，防止内存突增
         // 1024 对 buildingMeshes 来说有点大，建议设为 128 或 256
-        if (buildingMeshes.size() > 1024) break;
+
+        if (buildingMeshes.size() > 2048) break;
+
     }
 
 
     // --- 5. 卸载逻辑 (每秒执行一次即可，没必要每帧执行) ---
     static float unloadTimer = 0;
     unloadTimer += 0.016f; // 假设 60fps
-    if (unloadTimer > 2.0f) {//每120帧刷新一次
+    if (unloadTimer > 4.0f) {//每240帧刷新一次
         unloadTimer = 0;
         auto tooFar = std::remove_if(meshChunks.begin(), meshChunks.end(),
             [unloadDistance, player](const std::unique_ptr<ChunkMesh>& m) {
@@ -416,7 +433,6 @@ void loadChunkMeshByDistance(std::vector<std::unique_ptr<ChunkMesh>>& meshChunks
 //动态生成区块
 
 // 1. 全局/静态 变量，用于管理生成任务
-static std::mutex regionsMutex;
 static std::mutex pendingMutex;
 static std::unordered_set<Pos3D, Pos3DHash> pendingGeneration; // 存储正在生成的区块唯一 ID
 
@@ -480,14 +496,16 @@ void dynamicGenerateChunk(const Player& player, const LayeredNoise& noise, const
 		}
 
 		// 4. 确保 Region 存在 (主线程操作)
-		Region* region = getRegionByBlock(ax, ay, az);
+		auto region = getRegionByBlock(ax, ay, az);
 		if (!region) {
 			int regX = ax >> 9; int regY = ay >> 9; int regZ = az >> 9;
-			auto ptrRegion = std::make_unique<Region>(regX, regY, regZ);
-			region = ptrRegion.get();
+			auto ptrRegion = std::make_shared<Region>(regX, regY, regZ);
 
-			std::lock_guard<std::mutex> lock(regionsMutex);
-			regions.push_back(std::move(ptrRegion));
+
+			std::lock_guard<std::shared_mutex> lock(mapMutex);
+            regionMap[{regX, regY, regZ}] = ptrRegion;
+			region = ptrRegion;
+
 		}
 
 		// 5. 提交耗时的生成任务到线程池
@@ -521,13 +539,19 @@ void dynamicUnloadChunk(const size_t unLoadDistance) {
     const long long unLoadDistSq = unLoadDistance * unLoadDistance;
 
     // 2. 获取区域锁，防止主线程此时在 regions.push_back 导致崩溃
-    std::lock_guard<std::mutex> regLock(regionsMutex);
+    std::lock_guard<std::shared_mutex> regLock(mapMutex);
 
-    for (auto& region : regions) {
-        Region* rawRegion = region.get();
+    //卧槽我就说为什么这么卡，原来这狗日的AI用的是堵塞锁，等我把裸指针都改成shared_ptr之后再弄
+
+    for (auto [index, region] : regionMap) {
+
+        std::shared_ptr<Region> sharedPtrRegion = region;
+
+        //？？？何意味，为什么regionMap里会存在empty的shared_ptr？加个下面的代码就不崩了
+        if (sharedPtrRegion == nullptr)continue;
 
         // 3. 将每个 Region 的扫描任务丢进线程池
-        pool.enqueue([rawRegion, pPos, unLoadDistSq]() {
+        pool.enqueue([sharedPtrRegion, pPos, unLoadDistSq]() {
 
             for (int x = 0; x < 32; ++x) {
                 for (int y = 0; y < 32; ++y) {
@@ -535,10 +559,10 @@ void dynamicUnloadChunk(const size_t unLoadDistance) {
 
                         // 4. RAII 锁定区块插槽
                         // 使用 try_lock 避免因为某个区块正在 build 导致卸载线程卡死
-                        std::unique_lock<std::mutex> lock(rawRegion->mtxChunks[x][y][z], std::try_to_lock);
+                        std::unique_lock<std::mutex> lock(sharedPtrRegion->mtxChunks[x][y][z], std::try_to_lock);
                         if (!lock.owns_lock()) continue;
 
-                        auto& chunk = rawRegion->chunks[x][y][z];
+                        auto& chunk = sharedPtrRegion->chunks[x][y][z];
                         if (chunk == nullptr) continue;
 
                         // 核心修正：距离计算
