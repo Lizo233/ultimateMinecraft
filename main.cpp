@@ -103,13 +103,12 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 	//regions[0]->chunks[1][16][1]->blocks[13][13][13] = 1;
 	//mesh.update(*regions[0]->chunks[1][16][1]);
 
-	int x = 0;
-	int y = 0;
-	int z = 0;
+
 	
 	//渲染距离
-	double renderDistance = 1024;
+	constexpr float renderDistance = 384;//此值将发送至着色器
 
+	//区块卸载距离
 	constexpr int chunkUnloadDistance = 1024;
 
 
@@ -145,8 +144,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		// 因为坐标已经在 update 里加过世界偏移了，model 矩阵设为单位矩阵即可
 		cubeShader->setMat4("model", glm::mat4(1.0f));
 		//雾的设置
-		cubeShader->setFloat("fogStart", 256.0f);
-		cubeShader->setFloat("fogEnd", 288.0f);
+		cubeShader->setFloat("fogStart", renderDistance);
+		cubeShader->setFloat("fogEnd", renderDistance + 64);
 		//雾的颜色和清屏颜色一样
 		cubeShader->setVec3("fogColor", glm::vec3(0.2f * sin(glfwGetTime()), 0.3f, 0.3f * cos(glfwGetTime())));
 
