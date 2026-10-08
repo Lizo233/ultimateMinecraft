@@ -94,8 +94,8 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 	
 	//存区块的Mesh（顶点数据类）
-	std::vector<std::unique_ptr<ChunkMesh>> chunkRenderMeshes;
-	chunkRenderMeshes.reserve(10000);
+	std::vector<std::unique_ptr<ChunkMesh>> chunkMeshBuffer;
+	chunkMeshBuffer.reserve(10000);
 
 
 	
@@ -149,12 +149,12 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 
 
 		//动态加载区块Mesh
-		loadChunkMeshByDistance(chunkRenderMeshes, 512, mainPlayer);
+		loadChunkMeshByDistance(chunkMeshBuffer, 512, mainPlayer);
 
 
 
 		//遍历ChunkMesh然后调用它们的渲染函数
-		for (auto& mesh : chunkRenderMeshes) {
+		for (auto& mesh : chunkMeshBuffer) {
 			mesh->draw();
 			//准备做区块合并
 			//可以用一个drawChunkMesh()函数来做绘制
@@ -165,7 +165,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		//暂不设置ChunkMesh::tooFar
 		/*
 		//将距离太远的ChunkMesh设置为不显示
-		for (auto& mesh : chunkRenderMeshes) {
+		for (auto& mesh : chunkMeshBuffer) {
 			
 			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
 			
@@ -182,7 +182,7 @@ int main(char argc, char* argv[], char* envp[]) {//也许会用到envp和argv?
 		}
 
 		//将距离近的ChunkMesh设置为显示
-		for (std::unique_ptr<ChunkMesh>& mesh : chunkRenderMeshes) {
+		for (std::unique_ptr<ChunkMesh>& mesh : chunkMeshBuffer) {
 			
 			Pos3D posChunkCenter = { mesh->posChunk.x * 16 + 8 ,mesh->posChunk.y * 16 + 8 ,mesh->posChunk.z * 16 + 8 };
 
